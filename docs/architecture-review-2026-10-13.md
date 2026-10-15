@@ -2,6 +2,9 @@
 
 Status: **proposed; pending human approval and Codex validation**. This review was prepared in ChatGPT from the current repository documents; it was **not** executed by Codex.
 
+## Follow-up — 2026-10-14
+The [preferred architecture](architecture.md) now specifies Java workers and embedded Flowable, subject to a PoC. The original review below is retained as historical analysis; its Python recommendation is superseded. This documentation pass reviewed repository guidance and issues, not a runtime implementation. Preserve reliability/security findings; validate engine/lease transaction boundaries, project workflow versions and provider swapping before adopting Flowable.
+
 ## Assessment
 The control-plane / execution-plane split is appropriate for laptop-first and cloud-later deployment. GitHub should remain authoritative for issues, PRs, branch refs and merge status, while PostgreSQL records durable orchestration state.
 
@@ -26,7 +29,7 @@ The control-plane / execution-plane split is appropriate for laptop-first and cl
 1. Spring Boot + migrations and minimal job schema.
 2. GitHub App webhook verification and durable inbox.
 3. Versioned worker API with lease/heartbeat.
-4. Python worker and disposable Docker job sandbox.
+4. Java external worker and disposable Docker job sandbox (supersedes the original Python recommendation).
 5. Unattended Codex feasibility check.
 6. Branch + PR adapter and end-to-end integration test.
 
