@@ -25,6 +25,10 @@ ForgeFlow is an early-stage, open-source project to coordinate GitHub epics and 
 
 Implementation is not yet available. Start with the [architecture](docs/architecture.md), [roadmap](docs/roadmap.md), and [agent conventions](AGENTS.md). Development work is tracked in GitHub Issues.
 
+## Architecture decisions
+
+- [ADR 0001 — Pluggable agent identity](docs/adr/0001-pluggable-agent-identity.md): separate logical agents, SCM actors, credentials and LLM backends while preserving attribution and human approvals.
+
 ## Project principles
 
 GitHub is the authority for repository artifacts; AI writes code but deterministic rules control scheduling and merge eligibility. Never commit credentials or sensitive logs. Contributions and license terms will be established before accepting outside contributions.
