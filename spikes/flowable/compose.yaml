@@ -1,0 +1,32 @@
+services:
+  database:
+    image: postgres:17.6
+    environment:
+      POSTGRES_DB: flowable_spike
+      POSTGRES_USER: spike
+      POSTGRES_PASSWORD: disposable-fixture-only
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U spike -d flowable_spike"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    tmpfs:
+      - /var/lib/postgresql/data
+    mem_limit: 512m
+  tests:
+    image: maven:3.9.9-eclipse-temurin-21
+    working_dir: /workspace
+    command: ["mvn", "-B", "--no-transfer-progress", "verify"]
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://database:5432/flowable_spike
+      SPRING_DATASOURCE_USERNAME: spike
+      SPRING_DATASOURCE_PASSWORD: disposable-fixture-only
+    volumes:
+      - .:/workspace
+      - maven-cache:/root/.m2
+    depends_on:
+      database:
+        condition: service_healthy
+    mem_limit: 1536m
+volumes:
+  maven-cache:
