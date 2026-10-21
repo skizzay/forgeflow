@@ -6,8 +6,8 @@ Dependencies: independent fixtures; real Codex/GitHub evidence depends on #13.
 The original baseline is `397461f`; recovery baseline is `1ec02bf`.
 
 **[Results matrix and provisional synthesis](../../docs/research/issue-18-results.md).**
-Overall adoption remains HOLD pending the actual GitHub boundary; the real
-Codex local experiment now passes. This is a
+The maintainer accepted the bounded feasibility result on 2026-10-21; actual
+GitHub integration remains follow-up work. The real Codex local experiment passes. This is a
 Java/Spring Boot prototype, not the production bootstrap (#7).
 
 ## Reproduce
@@ -88,7 +88,8 @@ guarded external handoff, schema upgrade/restore and fixed container isolation.
 The [real Codex local experiment](../../docs/research/real-codex-local-experiment.md)
 now passes using the authorized existing ChatGPT sign-in, an access-only credential
 projection, restricted outbound proxy, and the user-designated local Git sandbox.
-It does not create an actual GitHub PR; #13/#18 remain open for that boundary.
+It does not create an actual GitHub PR; #11/#13/#15 retain that follow-up scope.
+Issue #18 is closed at maintainer direction based on the bounded local evidence.
 
 See the [full results](../../docs/research/issue-18-results.md),
 [recovery plan](../../docs/research/flowable-recovery-experiment.md), and
@@ -97,7 +98,7 @@ See the [full results](../../docs/research/issue-18-results.md),
 Verification and tradeoffs for the eventual PR update are recorded in those files.
 No production schema, generic BPMS editor, scheduler, auto-merge or production
 approval is introduced. GitHub PR #21 remains open; local continuations are not
-pushed. Existing issue dependencies remain unsatisfied.
+pushed. Issue closure does not satisfy prerequisite PR integration into the epic branch.
 
 ## Real local Codex exercise (explicit opt-in)
 

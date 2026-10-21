@@ -96,8 +96,10 @@ GitHub PR #21 is not updated or merged by this experiment.
 - No engine async retries are enabled. Production retry limits, escalation,
   outbox/notification delivery, schema migrations and upgrade/restore remain open.
 
-**Result: the simulated recovery slice passes; overall Flowable adoption remains
-HOLD.** Next validate authenticated worker/approval boundaries and real provider
+**Historical recovery-checkpoint result: the simulated recovery slice passed;
+overall adoption was HOLD at that point.** Subsequent results and the maintainer's
+acceptance are in the [current results](issue-18-results.md). The next experiments
+at that checkpoint were to validate authenticated worker/approval boundaries and real provider
 feasibility; do not turn these fixture results into a claim of exactly-once GitHub
 effects or completion of #18. See the
 [decision record](../architecture/decisions/0002-flowable-spike-in-progress.md).

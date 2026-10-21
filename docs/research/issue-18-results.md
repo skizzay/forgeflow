@@ -3,7 +3,8 @@
 Issue: [#18](https://github.com/skizzay/forgeflow/issues/18), parent
 [Foundation #1](https://github.com/skizzay/forgeflow/issues/1), continuation of
 [PR #21](https://github.com/skizzay/forgeflow/pull/21). Results are local; no GitHub
-pushes, issue edits, sandbox PRs or merges were performed. The real Codex exercise
+pushes, sandbox PRs or merges were performed. Issue #18 closure was subsequently
+authorized by the maintainer on 2026-10-21. The real Codex exercise
 now uses the existing ChatGPT sign-in and user-designated local Git sandbox.
 
 ## Results matrix
@@ -102,8 +103,9 @@ that arbitrary BPMN scripts, classes or expressions are safe to accept.
 
 ## Overall synthesis — local evidence complete; GitHub boundary unverified
 
-**The completed experiments support Flowable's technical fit. They have not
-revealed a reason to reject it. Overall Issue #18 remains HOLD, rather than GO.**
+**Accepted bounded feasibility result, 2026-10-21.** The maintainer accepted the
+local results as sufficient to close #18. The completed experiments support
+Flowable's technical fit; the previous HOLD is superseded for this spike.
 
 Real Codex authentication, execution, usage counters and independent Java tests
 now pass in the user-authorized local sandbox. The remaining decision evidence is
@@ -113,10 +115,13 @@ capacity on the Pi remains unverified. Production credential/approval integratio
 patched version selection, release notices and deployment hardening remain delivery
 requirements; none is implied by passing fixture tests.
 
-The next action, if authorized later, is a narrow real GitHub sandbox integration
-run. No further generic Flowable POC is indicated by the completed experiments. Keep
-#18 open and #7 dependency-gated until the full evidence and adoption decision are
-reviewed. No issue or prerequisite is marked complete by this document.
+Actual GitHub integration remains follow-up work in #11/#13/#15; no further
+generic Flowable POC is indicated. Closure is acceptance of the bounded local
+experiment, not a claim that every original checklist item was demonstrated.
+The evidence commits remain local and PR #21 remains open. A closed issue does
+not satisfy #7's prerequisite integration: the prerequisite PR must still merge
+into the epic branch with explicit approval. No production dispatch or merge is
+authorized by this decision.
 
 ## Sources
 

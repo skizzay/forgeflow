@@ -1,6 +1,6 @@
-# ADR 0002: Flowable feasibility evidence (in progress)
+# ADR 0002: Flowable feasibility evidence
 
-Status: **HOLD; no production adoption decision**.
+Status: **Accepted bounded feasibility result — maintainer direction, 2026-10-21.**
 Issue: [#18](https://github.com/skizzay/forgeflow/issues/18).
 Parent: [Foundation #1](https://github.com/skizzay/forgeflow/issues/1).
 
@@ -29,16 +29,20 @@ Spring Boot 3.5.4, Flowable 7.2.0 and PostgreSQL 17.6.
 ## Decision and consequences
 
 Completed experiments support technical fit; no experiment has established a
-reason to reject Flowable. Do not mark #18 complete or dispatch production jobs.
+reason to reject Flowable. On 2026-10-21 the maintainer accepted these results as
+sufficient to close the bounded spike. This supersedes the earlier HOLD; it is
+not approval to dispatch production jobs or merge PR #21.
 The real Codex/container exercise now passes using existing ChatGPT access-only
 sign-in in the user-designated local Git sandbox. Five independent Java checks and
 workflow completion passed; usage counters and a local story review are recorded.
-The remaining adoption evidence is actual GitHub issue/branch/PR integration and
-scoped App credentials. Local review artifacts do not satisfy those criteria. Pi hardware is unavailable; host measurements are
+Actual GitHub issue/branch/PR integration and scoped App credentials remain
+follow-up work under #11/#13/#15. Local review artifacts do not satisfy those
+criteria, and closure does not claim otherwise. Pi hardware is unavailable; host measurements are
 not Pi sizing evidence. Production identity, patched version selection, runtime
 schema privileges and redistribution notices remain explicit delivery requirements.
 Fixture approval, deterministic providers and simulated SCM must remain visibly
-separate from real human/GitHub/Codex evidence. Overall adoption remains HOLD.
+separate from real human/GitHub/Codex evidence. Proceed with the selected Flowable
+direction subject to normal review, dependency integration and human approval gates.
 
 Story branches for #7/#8/#14/#15 may hold reviewable implementation plans while
 their dependencies remain blocked. A draft PR into main is a review artifact,
