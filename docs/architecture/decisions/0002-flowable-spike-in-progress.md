@@ -19,17 +19,24 @@ activity execution with rollback on rejection, and deterministic test-provider
 substitution. The local [recovery experiment](../../research/flowable-recovery-experiment.md)
 adds process-crash injection, atomic engine/domain completion, fencing,
 reconciliation, competing claims and cancellation races with simulated SCM effects.
-Nine integration tests passed on Linux amd64 with Java 21,
+The [results matrix](../../research/issue-18-results.md) adds authenticated HTTPS
+handoff with separate Java workers, closed registered workflows, manifest-bound
+approval, heartbeat/identity checks, schema upgrade/restore and fixed container
+isolation. Seventeen integration tests, three schema phases, one resource probe
+and four container outcomes passed on Linux amd64 with Java 21,
 Spring Boot 3.5.4, Flowable 7.2.0 and PostgreSQL 17.6.
 
 ## Decision and consequences
 
-Continue the bounded spike. Do not call Flowable validated, mark #18 complete,
-or dispatch production jobs. Before a GO, validate worker authentication,
-lease/engine-lock mapping, fencing/cancellation/replay, side-effect reconciliation,
-registered activity/workflow policy enforcement, schema upgrades, licensing,
-Pi limits and real-provider feasibility (#13). Simulated approvals and providers
-must remain visibly separate from real human/GitHub/Codex evidence.
+Completed experiments support technical fit; no experiment has established a
+reason to reject Flowable. Do not mark #18 complete or dispatch production jobs.
+The remaining adoption evidence is the real Codex/container/GitHub run and #13
+authentication/usage validation. A disposable repository and test authentication
+choice/location are pending. Pi hardware is unavailable; host measurements are
+not Pi sizing evidence. Production identity, patched version selection, runtime
+schema privileges and redistribution notices remain explicit delivery requirements.
+Fixture approval, deterministic providers and simulated SCM must remain visibly
+separate from real human/GitHub/Codex evidence. Overall adoption remains HOLD.
 
 Story branches for #7/#8/#14/#15 may hold reviewable implementation plans while
 their dependencies remain blocked. A draft PR into main is a review artifact,

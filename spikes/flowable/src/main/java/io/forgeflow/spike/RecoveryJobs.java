@@ -83,6 +83,30 @@ public class RecoveryJobs {
         });
     }
 
+    public void heartbeat(Lease lease, Duration duration) {
+        long seconds = duration.toSeconds();
+        if (seconds <= 0 || seconds > 3600) throw new IllegalArgumentException("Invalid lease duration");
+        transaction.executeWithoutResult(status -> {
+            requireLiveOwner(locked(lease.jobKey()), lease);
+            jdbc.update("UPDATE spike_job SET lease_until = clock_timestamp() + (? * interval '1 second') WHERE job_key = ?",
+                    seconds, lease.jobKey());
+        });
+    }
+
+    public boolean cancel(Lease lease) {
+        return Boolean.TRUE.equals(transaction.execute(status -> {
+            requireLiveOwner(locked(lease.jobKey()), lease);
+            return cancel(lease.jobKey());
+        }));
+    }
+
+    private void requireLiveOwner(Job job, Lease lease) {
+        if (!job.state().equals("RUNNING") || !job.live() || job.fence() != lease.fence()
+                || !Objects.equals(job.worker(), lease.worker())) {
+            throw new IllegalStateException("Attempt is not live or owned");
+        }
+    }
+
     /** Fence before querying external state. A restarted reconciler invalidates earlier observations. */
     public Reconciliation beginReconciliation(String jobKey) {
         return transaction.execute(status -> {
