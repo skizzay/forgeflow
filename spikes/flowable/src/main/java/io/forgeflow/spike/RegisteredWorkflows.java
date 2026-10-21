@@ -13,7 +13,7 @@ public class RegisteredWorkflows {
     public String deploy(String variant, String activity, String provider) {
         if (!Set.of("direct", "review-first").contains(variant)
                 || !activity.equals("coding-test.v1")
-                || !Set.of("deterministic-a", "deterministic-b").contains(provider)) {
+                || !Set.of("deterministic-a", "deterministic-b", "codex").contains(provider)) {
             throw new IllegalArgumentException("Unregistered workflow, activity or provider");
         }
         String prefix = variant.equals("direct")

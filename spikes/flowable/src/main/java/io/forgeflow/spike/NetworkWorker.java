@@ -22,6 +22,7 @@ public final class NetworkWorker {
         String evidence = switch (claimed.path("provider").asText()) {
             case "deterministic-a" -> "fixture-a";
             case "deterministic-b" -> "fixture-b";
+            case "codex" -> runCodex(client, base, token, fence, json);
             default -> throw new IllegalStateException("Unsupported provider");
         };
         send(client, base + "/heartbeat", token, "{\"fence\":" + fence + "}");
@@ -29,6 +30,28 @@ public final class NetworkWorker {
             Runtime.getRuntime().halt(75); // explicit prototype fault injection, before provider result
         }
         send(client, base + "/complete", token, json.writeValueAsString(java.util.Map.of("fence", fence, "effectId", evidence)));
+    }
+
+    private static String runCodex(HttpClient client, String base, String token, long fence, ObjectMapper json) throws Exception {
+        var leaseLost = new java.util.concurrent.atomic.AtomicBoolean(false);
+        var renewal = java.util.concurrent.Executors.newSingleThreadScheduledExecutor();
+        renewal.scheduleAtFixedRate(() -> {
+            try { send(client, base + "/heartbeat", token, "{\"fence\":" + fence + "}"); }
+            catch (Exception rejected) { leaseLost.set(true); }
+        }, 0, 10, java.util.concurrent.TimeUnit.SECONDS);
+        try {
+            var directory = java.nio.file.Path.of(System.getenv("SPIKE_SANDBOX"));
+            var result = new CodexContainerProvider().execute(directory,
+                    java.nio.file.Path.of(System.getenv("SPIKE_AUTH_FILE")), leaseLost::get);
+            var evidence = directory.resolve(".forgeflow/codex-result.json");
+            java.nio.file.Files.writeString(evidence, json.writeValueAsString(result) + "\n");
+            if (result.exitCode() != 0 || !result.turnCompleted() || !result.testsPassed() || leaseLost.get()) {
+                throw new IllegalStateException("Codex fixture or lease failed; see sanitized result");
+            }
+            return "codex-java-five-checks";
+        } finally {
+            renewal.shutdownNow();
+        }
     }
 
     private static String send(HttpClient client, String url, String token, String body) throws Exception {

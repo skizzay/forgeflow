@@ -6,7 +6,8 @@ Dependencies: independent fixtures; real Codex/GitHub evidence depends on #13.
 The original baseline is `397461f`; recovery baseline is `1ec02bf`.
 
 **[Results matrix and provisional synthesis](../../docs/research/issue-18-results.md).**
-Overall adoption remains HOLD pending the real-provider experiment. This is a
+Overall adoption remains HOLD pending the actual GitHub boundary; the real
+Codex local experiment now passes. This is a
 Java/Spring Boot prototype, not the production bootstrap (#7).
 
 ## Reproduce
@@ -15,7 +16,7 @@ Requires Docker, Docker Compose and a Unix shell. No host Java install or secret
 are required for these deterministic experiments. Run from this directory:
 
 ```sh
-# 17 PostgreSQL integration tests, including separate Java worker JVMs over HTTPS.
+# 19 PostgreSQL/credential integration tests, including separate Java worker JVMs over HTTPS.
 docker compose -p forgeflow-spike-18 up --abort-on-container-exit --exit-code-from tests
 docker compose -p forgeflow-spike-18 down
 
@@ -58,13 +59,13 @@ credentials. Process-engine async execution, IDM and event registry are disabled
 
 - `WorkflowPersistenceTest`: original 3 persistence, pinning and guarded-activity cases.
 - `RecoveryExperimentTest`: 6 failure/replay/fencing/concurrency cases using simulated SCM.
-- `HandoffExperimentTest`: 8 certificate-validated HTTPS cases, including both registered
+- `HandoffExperimentTest`: 8 certificate-validated HTTPS cases, including deterministic registered
   providers/variants, authorization, rotation, heartbeats and network-worker restart.
 - `SchemaLifecycleProbe`: explicit multi-version/database lifecycle probe, not in the default suite.
 - `ResourceFootprintProbe`: explicit warm-engine sample, not in the default suite.
 - `probes/DockerIsolationProbe.java`: trusted host-side Java controller; fixed job
   containers are non-root, read-only, resource-limited, have network disabled and
-  receive neither host bind mounts nor Docker sockets. No LLM is invoked.
+  receive neither host bind mounts nor Docker sockets. No LLM is invoked by that fixed probe.
 
 The HTTPS adapter uses the JDK server alongside Spring-managed services; it is not
 production Spring MVC/Security. Worker tokens and capabilities are trusted fixture
@@ -84,8 +85,10 @@ writes, remote cancellation or quiescence of in-flight requests.
 Completed experiments support technical feasibility: persistent process state,
 atomic engine/domain completion, explicit application-owned leases/reconciliation,
 guarded external handoff, schema upgrade/restore and fixed container isolation.
-The actual Codex/container/GitHub run remains unperformed pending a disposable
-repository and agreed test authentication; #13 is not satisfied.
+The [real Codex local experiment](../../docs/research/real-codex-local-experiment.md)
+now passes using the authorized existing ChatGPT sign-in, an access-only credential
+projection, restricted outbound proxy, and the user-designated local Git sandbox.
+It does not create an actual GitHub PR; #13/#18 remain open for that boundary.
 
 See the [full results](../../docs/research/issue-18-results.md),
 [recovery plan](../../docs/research/flowable-recovery-experiment.md), and
@@ -95,3 +98,16 @@ Verification and tradeoffs for the eventual PR update are recorded in those file
 No production schema, generic BPMS editor, scheduler, auto-merge or production
 approval is introduced. GitHub PR #21 remains open; local continuations are not
 pushed. Existing issue dependencies remain unsatisfied.
+
+## Real local Codex exercise (explicit opt-in)
+
+```sh
+docker build -t forgeflow-codex-java:0.163.0 codex-container
+bash real-codex-experiment.sh
+```
+
+This uses the active file-based ChatGPT sign-in in `CODEX_HOME`, defaults to the
+user-authorized `$HOME/tmp/forgeflow-sandbox`, and must be run by the trusted host
+controller. It creates local branches, a story commit and a review patch only.
+It never pushes or creates GitHub objects. A completed sandbox is not reset.
+See the research record above for credential handling, measured result and limits.

@@ -22,7 +22,7 @@ reconciliation, competing claims and cancellation races with simulated SCM effec
 The [results matrix](../../research/issue-18-results.md) adds authenticated HTTPS
 handoff with separate Java workers, closed registered workflows, manifest-bound
 approval, heartbeat/identity checks, schema upgrade/restore and fixed container
-isolation. Seventeen integration tests, three schema phases, one resource probe
+isolation. Nineteen integration tests, three schema phases, one resource probe
 and four container outcomes passed on Linux amd64 with Java 21,
 Spring Boot 3.5.4, Flowable 7.2.0 and PostgreSQL 17.6.
 
@@ -30,9 +30,11 @@ Spring Boot 3.5.4, Flowable 7.2.0 and PostgreSQL 17.6.
 
 Completed experiments support technical fit; no experiment has established a
 reason to reject Flowable. Do not mark #18 complete or dispatch production jobs.
-The remaining adoption evidence is the real Codex/container/GitHub run and #13
-authentication/usage validation. A disposable repository and test authentication
-choice/location are pending. Pi hardware is unavailable; host measurements are
+The real Codex/container exercise now passes using existing ChatGPT access-only
+sign-in in the user-designated local Git sandbox. Five independent Java checks and
+workflow completion passed; usage counters and a local story review are recorded.
+The remaining adoption evidence is actual GitHub issue/branch/PR integration and
+scoped App credentials. Local review artifacts do not satisfy those criteria. Pi hardware is unavailable; host measurements are
 not Pi sizing evidence. Production identity, patched version selection, runtime
 schema privileges and redistribution notices remain explicit delivery requirements.
 Fixture approval, deterministic providers and simulated SCM must remain visibly

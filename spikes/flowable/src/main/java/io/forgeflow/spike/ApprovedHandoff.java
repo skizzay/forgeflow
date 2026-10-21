@@ -76,7 +76,7 @@ public class ApprovedHandoff {
 
     private Map<String, String> approved(String key) {
         var value = manifest(key);
-        if (!Set.of("deterministic-a", "deterministic-b").contains(value.get("provider"))
+        if (!Set.of("deterministic-a", "deterministic-b", "codex").contains(value.get("provider"))
                 || !value.get("activity").equals("coding-test.v1")) {
             throw new IllegalStateException("Unregistered activity or provider");
         }
