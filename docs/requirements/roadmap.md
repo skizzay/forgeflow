@@ -24,7 +24,7 @@ Pause/resume/cancel, telemetry, AI and compute cost reporting, security hardenin
 1. Spring Boot skeleton and database migrations.
 2. GitHub App webhook receiver with signature verification and durable inbox.
 3. Job and worker API contract.
-4. Python polling worker with lease and heartbeat.
+4. Java polling worker with lease and heartbeat.
 5. Disposable Docker Codex execution image and safe credential handling.
 6. Test story -> branch -> PR end-to-end demonstration.
 

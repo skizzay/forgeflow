@@ -3,6 +3,8 @@
 Tracks [#18](https://github.com/skizzay/forgeflow/issues/18) under
 [Foundation #1](https://github.com/skizzay/forgeflow/issues/1).
 This is the first dependency-ready implementation for the milestone 1 foundation.
+The initial POC baseline is commit `397461f`. The local continuation adds the
+[recovery experiment](../../docs/research/flowable-recovery-experiment.md).
 Issue #18 allows independent fixtures; its real provider/PR evidence depends on #13.
 It is not the production bootstrap (#7) or a completed adoption decision.
 
@@ -33,7 +35,7 @@ mounts the Docker socket or host credentials and does not launch untrusted jobs.
 Only the process engine starter is used; IDM, event registry and async execution
 are disabled. There is no public web server or engine REST API.
 
-## Implemented and verified
+## Initial POC: implemented and verified
 
 Three PostgreSQL integration tests pass on Linux amd64:
 
@@ -50,6 +52,20 @@ Three PostgreSQL integration tests pass on Linux amd64:
 The tests assert state from engine/history/database APIs rather than model text.
 Expected negative cases produce engine exception logs with synthetic fixture data.
 No raw execution logs, credentials, user data or repository source are published.
+
+## Recovery experiment: implemented and verified
+
+Six additional PostgreSQL integration cases exercise dispatch intent, competing
+claims, expiry/fencing, reconciliation, idempotent completion and cancellation
+races. Separate JVMs hard-exit after a synthetic external effect and before a
+control-plane transaction commits. The latter proves that the domain result and
+Flowable receive-task completion roll back together. The former recovers one
+existing synthetic PR without rerunning creation after an engine-context restart.
+
+**Local result: 9 tests pass in total (3 original + 6 recovery).** See the
+[research plan and results](../../docs/research/flowable-recovery-experiment.md)
+for pass/fail criteria, transaction/retry ownership and limits. SCM lookup and
+stop evidence are simulated; there is no real worker API or GitHub integration.
 
 ## Boundaries and open evidence
 
@@ -71,11 +87,13 @@ work. The `spike_approval` table is test-only, not a production migration.
 Not implemented or measured yet:
 
 - Authenticated versioned worker API, scoped worker identity/TLS/rotation.
-- Claims, capabilities, heartbeat, fencing, cancellation, engine-lock mapping,
-  crash/lease reconciliation, duplicate completion and retry ownership.
+- Capabilities, heartbeat and production worker lease/engine-lock integration.
+  Claim/fencing, cancellation and reconciliation now have simulated recovery
+  evidence; authenticated/distributed worker integration remains open.
 - Docker coding/testing activity, Codex provider, GitHub effect reconciliation,
-  or a real sandbox issue-to-PR run (#13 evidence required).
-- Pi resource measurements (hardware unavailable), engine/worker hard-crash tests,
+  or a real sandbox issue-to-PR run (#13 evidence required). Synthetic PR recovery
+  does not validate real GitHub behavior.
+- Pi resource measurements (hardware unavailable), full-host/database crash tests,
   immutable activity registry and security against untrusted workflow definitions.
 - Full dependency license/notice inventory. Flowable OSS source is Apache-2.0;
   no enterprise distribution is included. Review transitive dependencies and
@@ -84,11 +102,12 @@ Not implemented or measured yet:
 ## Decision
 
 **HOLD — insufficient evidence to adopt Flowable for production.** This initial
-slice establishes embedded PostgreSQL persistence/versioning and a guarded
-activity seam. It does not close #18 or satisfy #7's decision dependency.
-See [the decision record](../../docs/adr/0002-flowable-spike-in-progress.md).
+slice establishes embedded PostgreSQL persistence/versioning, a guarded
+activity seam and simulated external-worker recovery. It does not close #18 or
+satisfy #7's decision dependency.
+See [the decision record](../../docs/architecture/decisions/0002-flowable-spike-in-progress.md).
 
-Verification: Compose test exit 0; 3 tests, 0 failures/errors/skips; `git diff --check`.
+Verification: Compose test exit 0; 9 tests, 0 failures/errors/skips; `git diff --check`.
 The architecture proposals in PRs #19 and #20 remain unmerged and are not silently
 incorporated into main. Their Java/identity refinements are treated as requirements
 where reflected in the current GitHub issues, without asserting human adoption.

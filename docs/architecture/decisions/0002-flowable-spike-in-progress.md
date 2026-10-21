@@ -13,10 +13,13 @@ proposal is pending review in #19; no documentation PR is merged by this change.
 
 ## Evidence
 
-The [executable spike](../../spikes/flowable/README.md) demonstrates PostgreSQL
+The [executable spike](../../../spikes/flowable/README.md) demonstrates PostgreSQL
 process persistence, definition pinning across deployment/restart, guarded
 activity execution with rollback on rejection, and deterministic test-provider
-substitution. Three integration tests passed on Linux amd64 with Java 21,
+substitution. The local [recovery experiment](../../research/flowable-recovery-experiment.md)
+adds process-crash injection, atomic engine/domain completion, fencing,
+reconciliation, competing claims and cancellation races with simulated SCM effects.
+Nine integration tests passed on Linux amd64 with Java 21,
 Spring Boot 3.5.4, Flowable 7.2.0 and PostgreSQL 17.6.
 
 ## Decision and consequences
