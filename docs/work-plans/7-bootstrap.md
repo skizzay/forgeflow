@@ -8,14 +8,14 @@ Dependency: #18 accepted research decision. Prototype merge is not required.
 ## Delivered scope
 
 Fresh Java 21 / Boot 4 / Flowable 8 control-plane module; PostgreSQL/Flyway domain
-schema; separately managed engine schema; explicit migration command; safe health
+schema; separately managed engine schema; independent migration executable; WebFlux health
 endpoint; packaged no-side-effect wait workflow and immutable-version registration
 checks. See [persistence design](../architecture/control-plane-persistence.md) and
 [local instructions](../user-guide/local-control-plane.md).
 
 PostgreSQL integration tests exercise empty/repeated migration, restart, definition
 pinning across a newer deployment, shared engine/domain rollback, schema and
-registry incompatibility, DML-only runtime, and HTTP health/denied routes.
+registry incompatibility, DML-only runtime, configurable schemas, and reactive HTTP health/denied routes.
 
 ## Boundaries and integration
 
@@ -28,3 +28,13 @@ This branch originated from `epic/1-foundation` off main. The user requested sto
 PRs into main as a review-target exception. Dependencies are not integrated until
 implementation PRs merge into the appropriate epic branch. Keep the PR open for
 review; do not merge, retarget or enable auto-merge without explicit approval.
+
+## Review remediation verification
+
+Maven verify passed with 10 tests (9 real-PostgreSQL integration checks and one
+schema-settings validation test), with no failures/errors/skips. This includes
+custom schemas across restart and shared rollback using Boot’s auto-configured
+transaction manager. The separate packaged migration JAR exited successfully
+with custom schemas and no workflow registration; the runtime JAR then started
+on Reactor Netty and returned status-only HTTP 200 health. Disposable database
+and application containers were removed.

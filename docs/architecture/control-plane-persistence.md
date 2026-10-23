@@ -24,10 +24,16 @@ Sources checked for this implementation:
 
 ## Ownership and transactions
 
-One modular Spring Boot control plane uses one datasource and one Spring JDBC
+One modular Spring Boot control plane uses one datasource and one Spring Boot auto-configured JDBC
 transaction manager. `forgeflow` contains Flyway-managed domain tables, registry
 metadata, pinned run identity, dispatch skeleton and webhook delivery metadata.
-`flowable` contains engine-managed tables. There are no cross-schema foreign keys
+`flowable` contains engine-managed tables. Both names are configurable through
+`FORGEFLOW_DOMAIN_SCHEMA` / `FORGEFLOW_ENGINE_SCHEMA` (defaults shown here),
+or runtime YAML `forgeflow.database.domain-schema` / `engine-schema`. Dedicated
+lowercase PostgreSQL identifiers are validated, must differ, and cannot target
+public/system schemas. Flyway placeholders, runtime validation, engine metadata
+and registry queries use the same settings; changing a name selects a different
+schema, it does not rename/move existing data. There are no cross-schema foreign keys
 into engine internals; engine IDs are opaque correlation values. The registry
 uses a composite foreign key so a run's key/version cannot name another engine definition.
 
@@ -50,9 +56,10 @@ Schema states are a constrained initial vocabulary, not those completed behavior
 ## Migration and upgrade boundary
 
 Runtime uses Flowable schema-update `false` and Flyway validation only. Missing or
-incompatible tables/checksums stop startup. The explicit `migrate` profile runs
-Flyway first, then Flowable schema maintenance, registers the packaged workflow,
-and exits; it has no HTTP server. Use a separate migration identity with DDL
+incompatible tables/checksums stop startup. The separate `-migrate.jar` release executable runs
+Flyway first, then Flowable schema maintenance and exits. It uses no Spring
+application context, HTTP server or workflow registration. The service entry point
+has no migration profile or profile-dependent shutdown logic. Use a separate migration identity with DDL
 privileges. Runtime needs schema USAGE and table DML/sequence privileges, not DDL.
 No Flyway clean, baseline-on-migrate, process auto-migration, engine REST routes,
 arbitrary BPMN upload or async executor is enabled.
@@ -72,9 +79,30 @@ are not one atomic upgrade: a later failure requires investigation/restore, not
 blind retry or an assumed downgrade. Roll back by restoring the matching backup
 and old artifact. No deployed upgrade or backup rehearsal is claimed by #7.
 
+## Deployment sequencing and blue-green constraints
+
+Run the migration executable once as a release job with DDL credentials before
+rolling out runtime containers with DML-only credentials. Complex data backfills
+must be separate resumable/batched jobs, not application-startup callbacks.
+Use expand/contract migrations: add backwards-compatible schema first, run old/new
+versions together only after explicit compatibility tests, switch traffic, then
+retire old instances before destructive contract changes. Flyway locking serializes
+schema-history changes; it is not a lock for the entire Flyway-plus-engine upgrade.
+The release system must serialize the whole migration job. Schema changes and
+engine upgrades are separate compatibility decisions: do not assume two Flowable
+versions can share an upgraded engine schema. This bootstrap does not provision a
+blue-green deployment or prove cross-version engine coexistence.
+
 ## HTTP and deployment boundary
 
-Runtime binds to loopback by default. Only GET `/actuator/health` is public, with
+Runtime uses Spring WebFlux/Reactor Netty and reactive Spring Security, and binds
+to loopback by default. JDBC/Flowable remain imperative/blocking and share Boot’s
+JDBC transaction manager. Application-owned persistence work currently runs only during startup; Actuator
+adapts the JDBC health contributor for reactive execution. Future HTTP
+handlers must delegate the whole imperative transaction to a bounded blocking
+executor (for example `Mono.fromCallable(...).subscribeOn(Schedulers.boundedElastic())`),
+never block a Netty event loop or span a JDBC transaction across reactive hops.
+No R2DBC conversion is implied. Runtime binds to loopback by default. Only GET `/actuator/health` is public, with
 status only; other requests are denied. Worker and GitHub routes do not exist yet.
 The local Docker command binds inside its container and publishes only host loopback.
 No external identity service, tunnel or Docker host socket is configured. The

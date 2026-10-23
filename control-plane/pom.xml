@@ -3,7 +3,7 @@
   <parent><groupId>io.forgeflow</groupId><artifactId>forgeflow</artifactId><version>0.1.0-SNAPSHOT</version></parent>
   <artifactId>control-plane</artifactId>
   <dependencies>
-    <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-webmvc</artifactId></dependency>
+    <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-webflux</artifactId></dependency>
     <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-jdbc</artifactId></dependency>
     <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-flyway</artifactId></dependency>
     <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-actuator</artifactId></dependency>
@@ -13,5 +13,13 @@
     <dependency><groupId>org.postgresql</groupId><artifactId>postgresql</artifactId><scope>runtime</scope></dependency>
     <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-test</artifactId><scope>test</scope></dependency>
   </dependencies>
-  <build><plugins><plugin><groupId>org.springframework.boot</groupId><artifactId>spring-boot-maven-plugin</artifactId></plugin></plugins></build>
+  <build><plugins><plugin>
+    <groupId>org.springframework.boot</groupId><artifactId>spring-boot-maven-plugin</artifactId>
+    <configuration><mainClass>io.forgeflow.controlplane.ControlPlaneApplication</mainClass></configuration>
+    <executions>
+      <execution><id>migration-artifact</id><goals><goal>repackage</goal></goals>
+        <configuration><classifier>migrate</classifier><mainClass>io.forgeflow.controlplane.DatabaseMigrator</mainClass></configuration>
+      </execution>
+    </executions>
+  </plugin></plugins></build>
 </project>

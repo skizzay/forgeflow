@@ -3,21 +3,25 @@ package io.forgeflow.controlplane;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.config.web.server.ServerHttpSecurity;
+import org.springframework.security.core.userdetails.ReactiveUserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.web.server.SecurityWebFilterChain;
+import reactor.core.publisher.Mono;
 
 @Configuration(proxyBeanMethods = false)
-@ConditionalOnWebApplication
+@ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.REACTIVE)
 class HttpSecurityConfiguration {
     @Bean
-    org.springframework.security.core.userdetails.UserDetailsService noInteractiveUsers() {
-        return username -> { throw new org.springframework.security.core.userdetails.UsernameNotFoundException("No interactive login"); };
+    ReactiveUserDetailsService noInteractiveUsers() {
+        return username -> Mono.error(new UsernameNotFoundException("No interactive login"));
     }
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        return http.authorizeHttpRequests(requests -> requests
-                .requestMatchers(org.springframework.http.HttpMethod.GET, "/actuator/health").permitAll()
-                .anyRequest().denyAll()).build();
+    SecurityWebFilterChain securityFilterChain(ServerHttpSecurity http) {
+        return http.authorizeExchange(requests -> requests
+                .pathMatchers(HttpMethod.GET, "/actuator/health").permitAll()
+                .anyExchange().denyAll()).build();
     }
 }

@@ -15,8 +15,8 @@ Java 21 and Maven are included in the build container; neither is required on th
 # Build the application without destructive database fixtures.
 docker compose -p forgeflow-dev run --rm build mvn -B -DskipTests package
 
-# Apply schemas using the explicit maintenance profile, then exit.
-docker compose -p forgeflow-dev run --rm build java -jar control-plane/target/control-plane-0.1.0-SNAPSHOT.jar --spring.profiles.active=migrate
+# Run the independent release migration executable, then exit.
+docker compose -p forgeflow-dev run --rm build java -jar control-plane/target/control-plane-0.1.0-SNAPSHOT-migrate.jar
 
 # Run the server. Host exposure is limited to 127.0.0.1:8080.
 docker compose -p forgeflow-dev run --rm --service-ports build java -jar control-plane/target/control-plane-0.1.0-SNAPSHOT.jar --server.address=0.0.0.0
@@ -37,7 +37,13 @@ Compose uses a visibly local-only database password; no host database port is
 published and no Docker socket is mounted. It does not configure a deployment.
 To run outside Compose, build with Java 21/Maven, supply `FORGEFLOW_DB_URL`,
 `FORGEFLOW_DB_USER`, `FORGEFLOW_DB_PASSWORD` from your environment/secret store and
-run the same JAR. Use a migration identity for the explicit maintenance command
+run the runtime JAR. The separate `-migrate.jar` uses those same environment
+variables directly and does not load Spring YAML. Set optional
+`FORGEFLOW_DOMAIN_SCHEMA` and `FORGEFLOW_ENGINE_SCHEMA` consistently for both
+commands (defaults `forgeflow` and `flowable`). Runtime also accepts the equivalent
+`forgeflow.database` YAML settings. Schema names must be distinct dedicated
+lowercase identifiers of at most 63 characters; existing schemas are not renamed
+when these settings change. Use a migration identity for the explicit maintenance command
 and a distinct DML-only identity for runtime; see the
 [persistence architecture](../architecture/control-plane-persistence.md).
 Do not put real credentials in source, command arguments, tracked environment

@@ -5,6 +5,8 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.sql.DriverManager;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.flowable.engine.ProcessEngine;
@@ -16,10 +18,12 @@ import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.web.server.context.WebServerApplicationContext;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import org.springframework.jdbc.support.JdbcTransactionManager;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
-
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Real PostgreSQL is required: no H2 fallback and no skipped container-dependent assertions. */
 class BootstrapIntegrationTest {
@@ -52,22 +56,25 @@ class BootstrapIntegrationTest {
         try (var connection = DriverManager.getConnection(adminUrl, user, password);
              var statement = connection.createStatement()) {
             statement.execute("drop database if exists " + database + " with (force)");
-            if (runtimeRole != null) statement.execute("drop role " + runtimeRole);
+            if (runtimeRole != null) statement.execute("drop role if exists " + runtimeRole);
         }
     }
 
     private ConfigurableApplicationContext start(boolean migrate, String... extra) {
+        if (migrate) {
+            DatabaseMigrator.migrate(new DriverManagerDataSource(url, login, loginPassword),
+                    new DatabaseSchemas("forgeflow", "flowable"));
+        }
         return new SpringApplicationBuilder(ControlPlaneApplication.class).web(WebApplicationType.NONE)
-                .profiles(migrate ? "migrate" : "runtime")
                 .run(arguments(extra));
     }
 
     private String[] arguments(String... extra) {
-        var arguments = new java.util.ArrayList<>(java.util.List.of(
+        var arguments = new ArrayList<>(List.of(
                 "--spring.datasource.url=" + url, "--spring.datasource.username=" + login,
                 "--spring.datasource.password=" + loginPassword,
                 "--logging.level.root=ERROR"));
-        arguments.addAll(java.util.List.of(extra));
+        arguments.addAll(List.of(extra));
         return arguments.toArray(String[]::new);
     }
 
@@ -146,6 +153,8 @@ class BootstrapIntegrationTest {
         try (var context = start(true)) {
             var engine = context.getBean(ProcessEngine.class);
             var jdbc = context.getBean(JdbcTemplate.class);
+            assertThat(context.getBeansOfType(PlatformTransactionManager.class)).hasSize(1);
+            assertThat(context.getBean(PlatformTransactionManager.class)).isInstanceOf(JdbcTransactionManager.class);
             var transaction = new TransactionTemplate(context.getBean(PlatformTransactionManager.class));
             String definition = jdbc.queryForObject("select definition_id from forgeflow.workflow_definition", String.class);
             assertThatThrownBy(() -> transaction.executeWithoutResult(status -> {
@@ -188,7 +197,7 @@ class BootstrapIntegrationTest {
             jdbc.execute("create role " + runtimeRole + " login password '" + temporaryPassword + "'");
             jdbc.execute("grant connect on database " + database + " to " + runtimeRole);
             jdbc.execute("grant usage on schema forgeflow, flowable to " + runtimeRole);
-            for (String schema : java.util.List.of("forgeflow", "flowable")) {
+            for (String schema : List.of("forgeflow", "flowable")) {
                 jdbc.execute("grant select, insert, update, delete on all tables in schema " + schema + " to " + runtimeRole);
                 jdbc.execute("grant usage, select on all sequences in schema " + schema + " to " + runtimeRole);
             }
@@ -207,16 +216,31 @@ class BootstrapIntegrationTest {
     }
 
     @Test
+    void configuredSchemasMigrateAndRestartWithoutCreatingDefaultSchemas() {
+        var schemas = new DatabaseSchemas("ff_domain", "ff_engine");
+        DatabaseMigrator.migrate(new DriverManagerDataSource(url, login, loginPassword), schemas);
+        for (int restart = 0; restart < 2; restart++) {
+            try (var context = start(false, "--forgeflow.database.domain-schema=ff_domain",
+                    "--forgeflow.database.engine-schema=ff_engine")) {
+                var jdbc = context.getBean(JdbcTemplate.class);
+                assertThat(jdbc.queryForObject("select count(*) from ff_domain.workflow_definition", Integer.class)).isEqualTo(1);
+                assertThat(jdbc.queryForObject("select count(*) from information_schema.tables where table_schema='ff_engine'", Integer.class)).isPositive();
+                assertThat(jdbc.queryForObject("select count(*) from information_schema.schemata where schema_name in ('forgeflow','flowable')", Integer.class)).isZero();
+            }
+        }
+    }
+
+    @Test
     void httpExposesOnlyMinimalHealth() throws Exception {
         try (var ignored = start(true)) { }
         try (var context = new SpringApplicationBuilder(ControlPlaneApplication.class)
-                .web(WebApplicationType.SERVLET).run(arguments("--server.port=0"))) {
+                .web(WebApplicationType.REACTIVE).run(arguments("--server.port=0"))) {
             int port = ((WebServerApplicationContext) context).getWebServer().getPort();
             var client = HttpClient.newHttpClient();
             var response = client.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + "/actuator/health")).GET().build(), HttpResponse.BodyHandlers.ofString());
             assertThat(response.statusCode()).isEqualTo(200);
             assertThat(response.body()).isEqualTo("{\"status\":\"UP\"}");
-            for (String path : java.util.List.of("/actuator/env", "/jobs", "/process-api/repository/deployments")) {
+            for (String path : List.of("/actuator/env", "/jobs", "/process-api/repository/deployments")) {
                 response = client.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + path)).GET().build(), HttpResponse.BodyHandlers.ofString());
                 assertThat(response.statusCode()).isIn(401, 403);
             }
