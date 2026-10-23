@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL" targetNamespace="https://forgeflow.io/workflows">
+  <process id="bootstrap" name="Persistence bootstrap" isExecutable="true">
+    <startEvent id="start"/>
+    <sequenceFlow id="start-wait" sourceRef="start" targetRef="awaitImplementation"/>
+    <receiveTask id="awaitImplementation" name="No worker dispatch in bootstrap"/>
+    <sequenceFlow id="wait-end" sourceRef="awaitImplementation" targetRef="end"/>
+    <endEvent id="end"/>
+  </process>
+</definitions>

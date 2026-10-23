@@ -1,0 +1,34 @@
+# Development-only database and build environment. No Docker socket is mounted.
+services:
+  db:
+    image: postgres:17.11
+    environment:
+      POSTGRES_USER: forgeflow_local
+      POSTGRES_PASSWORD: local-only-not-for-deployment
+      POSTGRES_DB: forgeflow
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U forgeflow_local -d forgeflow']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    volumes:
+      - database:/var/lib/postgresql/data
+  build:
+    image: maven:3.9.9-eclipse-temurin-21
+    working_dir: /workspace
+    environment:
+      FORGEFLOW_DB_URL: jdbc:postgresql://db:5432/forgeflow
+      FORGEFLOW_DB_USER: forgeflow_local
+      FORGEFLOW_DB_PASSWORD: local-only-not-for-deployment
+      MAVEN_OPTS: -Xmx384m
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - .:/workspace
+      - maven-cache:/root/.m2
+    ports:
+      - '127.0.0.1:8080:8080'
+volumes:
+  database:
+  maven-cache:

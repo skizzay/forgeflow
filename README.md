@@ -2,7 +2,7 @@
 
 **Dependency-aware orchestration for autonomous software development.**
 
-ForgeFlow is an early-stage, open-source project to coordinate GitHub epics and stories, Codex development workers, pull-request reviews, and controlled releases. **Status: architecture and planning; implementation not yet available.**
+ForgeFlow is an early-stage, open-source project to coordinate GitHub epics and stories, Codex development workers, pull-request reviews, and controlled releases. **Status: control-plane bootstrap; end-to-end orchestration is not yet available.**
 
 ## Intended workflow
 
@@ -17,14 +17,21 @@ ForgeFlow is an early-stage, open-source project to coordinate GitHub epics and 
 ## Planned components
 
 - **Control plane:** Spring Boot, PostgreSQL, GitHub App/webhooks, durable scheduler.
-- **Worker:** Python controller polling a versioned API; disposable Docker job containers.
+- **Worker:** Java controller polling a versioned API; disposable Docker job containers.
 - **Initial hosting:** Raspberry Pi orchestrator and Ubuntu laptop worker; cloud-worker portability designed in.
 - **Safeguards:** explicit approvals, dependency enforcement, CI gates, pause/cancel, idempotent retries, budgets and auditability.
 
 ## Getting started
 
-Implementation is not yet available. Start with the [architecture](docs/architecture.md), [roadmap](docs/roadmap.md), and [agent conventions](AGENTS.md). Development work is tracked in GitHub Issues.
+Start with the [architecture](docs/architecture.md), [roadmap](docs/roadmap.md), and [agent conventions](AGENTS.md). Development work is tracked in GitHub Issues.
 
 ## Project principles
 
 GitHub is the authority for repository artifacts; AI writes code but deterministic rules control scheduling and merge eligibility. Never commit credentials or sensitive logs. Contributions and license terms will be established before accepting outside contributions.
+
+## Local control-plane bootstrap (#7)
+
+The Java/Spring Boot control-plane skeleton now supports explicit PostgreSQL
+migration and a local health endpoint. See the [local guide](docs/user-guide/local-control-plane.md)
+and [schema/transaction design](docs/architecture/control-plane-persistence.md).
+Verify it with `./scripts/verify-bootstrap.sh`. GitHub/worker orchestration is not yet available.

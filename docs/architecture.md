@@ -4,7 +4,7 @@
 Spring Boot orchestrator hosted on Raspberry Pi, backed by PostgreSQL. GitHub App webhooks enter a durable, idempotent event inbox. GitHub remains authoritative for issues, branches, PRs and checks; PostgreSQL stores job leases, execution history, scheduling state and reconciliation checkpoints.
 
 ## Execution plane
-A Python worker controller on Ubuntu polls for jobs and advertises capabilities. It launches one isolated, disposable Docker execution container per story, with Codex and project toolchains. Initially one concurrent job. Workers access the orchestrator over an authenticated, versioned API and do not access its database. Do not mount the Docker socket inside untrusted execution containers.
+A Java worker controller on Ubuntu polls for jobs and advertises capabilities. It launches one isolated, disposable Docker execution container per story, with Codex and project toolchains. Initially one concurrent job. Workers access the orchestrator over an authenticated, versioned API and do not access its database. Do not mount the Docker socket inside untrusted execution containers.
 
 ## Workflow
 Codex drafts an epic and child stories; human approves the plan. Validate structured dependencies and acceptance-criteria coverage, reject cycles, create epic branch from main. Eligible stories receive isolated branches from the latest epic head. A story's dependencies are satisfied only after their PRs merge into the epic branch. Codex implements and tests, opens PR targeting epic branch. Copilot reviews; actionable feedback may trigger bounded remediation cycles. Required checks and merge permissions gate story integration. Once all stories merge, integration and architecture reviews run, then human approves epic-to-main PR and release.
@@ -17,3 +17,8 @@ Worker API abstracts execution location. Local Docker is first; cloud worker ada
 
 ## Open questions
 Codex unattended authentication/billing, Copilot review event behavior, branch protection rules, GitHub App permissions, and resource limits require prototype validation.
+
+## Bootstrap implementation (#7)
+
+See [control-plane persistence](architecture/control-plane-persistence.md) for
+implemented schema ownership, migration modes, version pins and remaining boundaries.

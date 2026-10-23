@@ -1,33 +1,30 @@
-# #7: Bootstrap Spring Boot and PostgreSQL schema
+# #7: Spring Boot and PostgreSQL bootstrap
 
-Issue: [#7](https://github.com/skizzay/forgeflow/issues/7).
-Parent: [Foundation #1](https://github.com/skizzay/forgeflow/issues/1).
-Status: **draft plan; dependencies unsatisfied**.
-Dependencies: #18 decision evidence.
+Issue: [#7](https://github.com/skizzay/forgeflow/issues/7), parent
+[Foundation #1](https://github.com/skizzay/forgeflow/issues/1).
+Status: implementation under review in [#22](https://github.com/skizzay/forgeflow/pull/22).
+Dependency: #18 accepted research decision. Prototype merge is not required.
 
-## Smallest coherent implementation
+## Delivered scope
 
-Implement one modular Java/Spring Boot control plane only after the #18 decision is reviewed and its prerequisite PR is merged into the epic branch. Select versions from the validated compatibility matrix rather than treating the initial spike as adoption evidence.
+Fresh Java 21 / Boot 4 / Flowable 8 control-plane module; PostgreSQL/Flyway domain
+schema; separately managed engine schema; explicit migration command; safe health
+endpoint; packaged no-side-effect wait workflow and immutable-version registration
+checks. See [persistence design](../architecture/control-plane-persistence.md) and
+[local instructions](../user-guide/local-control-plane.md).
 
-Keep Flyway-owned ForgeFlow tables separate from engine-managed tables. Persist repository, epic, story, job/attempt, worker, webhook inbox and pinned workflow/activity/plan/configuration identifiers. Job success must not update a story to MERGED. Record engine/domain transaction ownership, outbox boundaries and a rehearsed schema-upgrade procedure.
+PostgreSQL integration tests exercise empty/repeated migration, restart, definition
+pinning across a newer deployment, shared engine/domain rollback, schema and
+registry incompatibility, DML-only runtime, and HTTP health/denied routes.
 
-Verification matrix:
-- Empty PostgreSQL database: application starts and migrations apply.
-- Repeated startup: migrations are repeatable and data remains intact.
-- Engine restart: approved definition/configuration identity remains pinned.
-- Migration/registry incompatibility: startup fails clearly rather than mutating an active definition.
+## Boundaries and integration
 
-No production schema or selected-engine runtime is introduced by this planning draft. #18 currently remains HOLD. Prototype code belongs to #18 until the adoption decision is supported.
+No POC code, worker/approval endpoints, GitHub side effects, scheduler, or production
+identity provisioning. #8/#9/#10/#14/#15 remain separate work. #18's prior HOLD and
+prototype-merge requirement are superseded by maintainer acceptance and archive
+disposition; see documentation-only PR #26.
 
-## Review and integration
-
-This story branch was created from `epic/1-foundation`, which was created from
-main. The user explicitly requested story PRs targeting main; this is a review
-target exception to the documented epic-target workflow. A PR into main does not
-satisfy the requirement that prerequisite PRs merge into the epic branch before
-unlocking dependent execution. Do not merge, retarget, or enable auto-merge without
-explicit human direction. Human approval is required for every merge.
-
-Verification for this initial draft: reviewed current issue dependencies,
-architecture and roadmap, and checked Markdown formatting with `git diff --check`.
-There is no runtime code in this draft and no runtime verification is claimed.
+This branch originated from `epic/1-foundation` off main. The user requested story
+PRs into main as a review-target exception. Dependencies are not integrated until
+implementation PRs merge into the appropriate epic branch. Keep the PR open for
+review; do not merge, retarget or enable auto-merge without explicit approval.
