@@ -17,3 +17,8 @@ Worker API abstracts execution location. Local Docker is first; cloud worker ada
 
 ## Open questions
 Codex unattended authentication/billing, Copilot review event behavior, branch protection rules, GitHub App permissions, and resource limits require prototype validation.
+
+## Bootstrap implementation (#7)
+
+See [control-plane persistence](control-plane-persistence.md) for
+implemented schema ownership, migration modes, version pins and remaining boundaries.
