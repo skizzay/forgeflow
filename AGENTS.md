@@ -11,3 +11,5 @@ Never bypass human epic approval or final epic-to-main approval. Never auto-merg
 Favor deterministic scheduling and state transitions over AI-generated control decisions. Design retries for idempotency and recovery.
 
 Java conventions: use explicit imports for types instead of fully qualified class names in code, including tests; qualify a name only to resolve an actual collision. Use YAML for Spring configuration. Use Spring WebFlux for the HTTP layer; keep blocking JDBC/Flowable operations off reactive event-loop threads and preserve imperative transaction boundaries.
+
+Documentation categories: [research](docs/research/README.md), [requirements](docs/requirements/README.md), [architecture](docs/architecture/README.md), and [consumer user guide](docs/user-guide/README.md). Read the [architecture overview](docs/architecture/overview.md) and [roadmap](docs/requirements/roadmap.md) before changes. Keep reproduction instructions beside spike code and link them from research.

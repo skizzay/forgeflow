@@ -31,7 +31,7 @@ The control-plane / execution-plane split is appropriate for laptop-first and cl
 6. Branch + PR adapter and end-to-end integration test.
 
 ## Validation checklist for Codex architecture pass
-Review this document and `docs/architecture.md` against actual GitHub API behavior and Codex execution interfaces. Identify unverified assumptions, propose ADRs, split issues into independently testable stories with explicit dependencies, and do not implement or dispatch production jobs until the plan is approved.
+Review this document and [the architecture overview](../architecture/overview.md) against actual GitHub API behavior and Codex execution interfaces. Identify unverified assumptions, propose ADRs, split issues into independently testable stories with explicit dependencies, and do not implement or dispatch production jobs until the plan is approved.
 
 ## Open questions
 - How is the test story approved without relying on a label that any collaborator can apply?

@@ -20,5 +20,5 @@ Codex unattended authentication/billing, Copilot review event behavior, branch p
 
 ## Bootstrap implementation (#7)
 
-See [control-plane persistence](architecture/control-plane-persistence.md) for
+See [control-plane persistence](control-plane-persistence.md) for
 implemented schema ownership, migration modes, version pins and remaining boundaries.

@@ -29,3 +29,15 @@ Pause/resume/cancel, telemetry, AI and compute cost reporting, security hardenin
 6. Test story -> branch -> PR end-to-end demonstration.
 
 Each task must specify dependencies, acceptance criteria, verification, and completion evidence.
+
+## Feasibility checkpoint — 2026-10-22
+
+[Issue #18](https://github.com/skizzay/forgeflow/issues/18) is closed with an
+accepted bounded research result; see the [synthesis](../research/issue-18-results.md).
+PR #21 is retained as an unmerged experiment archive, not a production dependency.
+Next implementation is #7 (bootstrap), followed by its dependent foundation and
+worker contracts. #13 still owns scoped GitHub credential and provider operational
+validation; #11 owns the actual approved-issue-to-PR demonstration; #15 owns real
+GitHub reconciliation. Milestone 1 is not complete. No new generic Flowable POC
+is required; use the existing evidence while implementing and testing those stories.
+Research acceptance does not waive human epic approval or implementation merge gates.

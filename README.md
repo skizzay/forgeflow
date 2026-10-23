@@ -23,7 +23,7 @@ ForgeFlow is an early-stage, open-source project to coordinate GitHub epics and 
 
 ## Getting started
 
-Start with the [architecture](docs/architecture.md), [roadmap](docs/roadmap.md), and [agent conventions](AGENTS.md). Development work is tracked in GitHub Issues.
+Start with the [architecture](docs/architecture/overview.md), [roadmap](docs/requirements/roadmap.md), and [agent conventions](AGENTS.md). Development work is tracked in GitHub Issues.
 
 ## Project principles
 
@@ -35,3 +35,7 @@ The Java/Spring Boot control-plane skeleton now supports explicit PostgreSQL
 migration and a local health endpoint. See the [local guide](docs/user-guide/local-control-plane.md)
 and [schema/transaction design](docs/architecture/control-plane-persistence.md).
 Verify it with `./scripts/verify-bootstrap.sh`. GitHub/worker orchestration is not yet available.
+
+Documentation: [research, requirements, architecture and consumer user guide](docs/README.md).
+
+The [archived Flowable spike](https://github.com/skizzay/forgeflow/blob/c5d8fcab11253eb5529caad8c066ebd13a033d1b/spikes/flowable/README.md) preserves the executable research and reproduction instructions.
