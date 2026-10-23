@@ -1,0 +1,21 @@
+{
+  "scope": "local sandbox; no GitHub remote",
+  "cliVersion": "0.163.0",
+  "architecture": "linux-amd64",
+  "authMode": "chatgpt-access-only",
+  "refreshTokenPassed": false,
+  "exitCode": 0,
+  "turnCompleted": true,
+  "independentJavaChecks": 5,
+  "testsPassed": true,
+  "usage": {
+    "input_tokens": 89556,
+    "cached_input_tokens": 80896,
+    "output_tokens": 1007
+  },
+  "workflowCompleted": true,
+  "sandboxStoryCommit": "40a1ab4388a44bb2c3e394a8afa3e24633e85889",
+  "githubPrCreated": false,
+  "localReviewBundleCreated": true,
+  "containersCleanedUp": true
+}
