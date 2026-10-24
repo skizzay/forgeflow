@@ -5,6 +5,8 @@ Implements [#8](https://github.com/skizzay/forgeflow/issues/8), parent
 [PR #23](https://github.com/skizzay/forgeflow/pull/23). Dependencies #7 and the
 connection-schema refinement #32 are integrated into the Foundation epic. Uses
 the existing WebFlux and PostgreSQL/JDBC control plane and shared transaction manager.
+The [hexagonal structure](hexagonal-control-plane.md) separates application policy
+and ports from HTTP, scheduling, HMAC/JSON and persistence adapters.
 
 ## Ingress and trust
 

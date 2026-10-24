@@ -12,7 +12,7 @@ import java.util.UUID;
 import javax.sql.DataSource;
 import org.flowable.engine.ProcessEngine;
 import org.flywaydb.core.Flyway;
-import io.forgeflow.controlplane.webhook.WebhookInbox;
+import io.forgeflow.controlplane.webhook.application.port.in.ProcessWebhook;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -250,7 +250,7 @@ class BootstrapIntegrationTest {
         try (var runtime = start(false, "--forgeflow.github.webhook.enabled=true",
                 "--forgeflow.github.webhook.secret=" + UUID.randomUUID(),
                 "--forgeflow.github.webhook.processing-enabled=false")) {
-            assertThat(runtime.getBean(WebhookInbox.class).processOne()).isFalse();
+            assertThat(runtime.getBean(ProcessWebhook.class).processOne()).isFalse();
             var row = runtime.getBean(JdbcTemplate.class).queryForMap("select * from webhook_inbox where delivery_id=?", delivery);
             assertThat(row).containsEntry("state", "RECEIVED").containsEntry("payload_sha256", null);
             assertThat(runtime.getBean(JdbcTemplate.class).queryForObject("select count(*) from webhook_event", Integer.class)).isZero();

@@ -1,6 +1,10 @@
 package io.forgeflow.controlplane;
 
-import io.forgeflow.controlplane.webhook.WebhookInbox;
+import io.forgeflow.controlplane.webhook.application.port.in.ProcessWebhook;
+import io.forgeflow.controlplane.webhook.application.port.in.ReceiveWebhook;
+import io.forgeflow.controlplane.webhook.application.port.in.SignedWebhook;
+import io.forgeflow.controlplane.webhook.domain.Reception;
+import io.forgeflow.controlplane.webhook.domain.WebhookException;
 import java.io.ByteArrayInputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -25,7 +29,6 @@ import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.web.server.context.WebServerApplicationContext;
 import org.springframework.context.ConfigurableApplicationContext;
-import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -121,6 +124,8 @@ class WebhookIntegrationTest {
             var request = request(UUID.randomUUID(), "issues", ISSUE).setHeader("X-Hub-Signature-256", invalid);
             assertThat(send(request)).isEqualTo(401);
         }
+        assertThat(send(request(UUID.randomUUID(), "issues", ISSUE)
+                .header("X-Hub-Signature-256", "sha256=" + "0".repeat(64)))).isEqualTo(401);
         var absent = HttpRequest.newBuilder(endpoint).header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(ISSUE));
         assertThat(send(absent)).isEqualTo(401);
@@ -161,7 +166,7 @@ class WebhookIntegrationTest {
         assertThat(jdbc.queryForObject("select state from webhook_inbox", String.class)).isEqualTo("RECEIVED");
         try (var pool = Executors.newFixedThreadPool(4)) {
             var tasks = new ArrayList<CompletableFuture<Boolean>>();
-            for (int i = 0; i < 8; i++) tasks.add(CompletableFuture.supplyAsync(() -> context.getBean(WebhookInbox.class).processOne(), pool));
+            for (int i = 0; i < 8; i++) tasks.add(CompletableFuture.supplyAsync(() -> context.getBean(ProcessWebhook.class).processOne(), pool));
             assertThat(tasks.stream().map(CompletableFuture::join).filter(Boolean::booleanValue).count()).isEqualTo(1);
         }
         assertThat(count("webhook_event")).isEqualTo(1);
@@ -172,9 +177,9 @@ class WebhookIntegrationTest {
     void committedDeliveryWithLostAcknowledgementCanBeReplayed() throws Exception {
         UUID id = UUID.randomUUID();
         String body = "{}";
-        String digest = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(body.getBytes(StandardCharsets.UTF_8)));
         // Inject the commit-before-response boundary without issuing any HTTP acknowledgement.
-        assertThat(context.getBean(WebhookInbox.class).receive(id, "ping", digest, 2, "{}")).isTrue();
+        assertThat(context.getBean(ReceiveWebhook.class).receive(new SignedWebhook(id.toString(), "ping",
+                signature(secret, body), body.getBytes(StandardCharsets.UTF_8)))).isEqualTo(Reception.CREATED);
         context.close();
         start(false);
         assertThat(send(request(id, "ping", body))).isEqualTo(200);
@@ -195,12 +200,13 @@ class WebhookIntegrationTest {
     void processorRollsBackOnFailureAndPublishesOnceAfterRecovery() throws Exception {
         assertThat(send(request(UUID.randomUUID(), "push", "{}"))).isEqualTo(202);
         jdbc.execute("alter table webhook_inbox add constraint inject_failure check (state='RECEIVED')");
-        assertThatThrownBy(() -> context.getBean(WebhookInbox.class).processOne()).isInstanceOf(DataAccessException.class);
+        assertThatThrownBy(() -> context.getBean(ProcessWebhook.class).processOne()).isInstanceOf(WebhookException.class)
+                .extracting(error -> ((WebhookException) error).kind()).isEqualTo(WebhookException.Kind.STORAGE_UNAVAILABLE);
         assertThat(jdbc.queryForObject("select state from webhook_inbox", String.class)).isEqualTo("RECEIVED");
         assertThat(count("webhook_event")).isZero();
         jdbc.execute("alter table webhook_inbox drop constraint inject_failure");
-        assertThat(context.getBean(WebhookInbox.class).processOne()).isTrue();
-        assertThat(context.getBean(WebhookInbox.class).processOne()).isFalse();
+        assertThat(context.getBean(ProcessWebhook.class).processOne()).isTrue();
+        assertThat(context.getBean(ProcessWebhook.class).processOne()).isFalse();
         assertThat(jdbc.queryForObject("select event_kind from webhook_event", String.class)).isEqualTo("UNSUPPORTED");
     }
 

@@ -40,3 +40,12 @@ check. All 49 local Markdown links and explicit-import/POM checks pass;
 `git diff --check` passes. Validation uses synthetic local deliveries, not a live
 GitHub App, and commit-before-response/context-restart injection rather than an
 OS process-kill experiment.
+
+## Hexagonal refactor
+
+The feature now exposes ReceiveWebhook/ProcessWebhook input ports with a Java-only
+application/domain core. SQL, transactions, HMAC, JSON, HTTP and scheduling are
+adapters assembled by Spring configuration. See the
+[structure and dependency rules](../architecture/hexagonal-control-plane.md).
+Core policy tests and compiled-class architecture rules supplement the existing
+PostgreSQL/HTTP suite; external contracts and migration SQL are unchanged.

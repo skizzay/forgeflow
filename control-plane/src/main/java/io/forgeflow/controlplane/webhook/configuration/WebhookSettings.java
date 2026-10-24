@@ -1,4 +1,4 @@
-package io.forgeflow.controlplane.webhook;
+package io.forgeflow.controlplane.webhook.configuration;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 

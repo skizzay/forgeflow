@@ -1,6 +1,6 @@
 package io.forgeflow.controlplane;
 
-import io.forgeflow.controlplane.webhook.WebhookSettings;
+import io.forgeflow.controlplane.webhook.configuration.WebhookSettings;
 import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

@@ -11,3 +11,5 @@ The intended stack is Java/Spring Boot with PostgreSQL and a separate Java worke
 - [Control-plane persistence bootstrap](control-plane-persistence.md) — implemented schema ownership, migration executable and WebFlux boundary for #7.
 
 - [Verified webhook inbox](webhook-inbox.md) — HMAC ingress, metadata retention and asynchronous classification for #8.
+
+- [Hexagonal control-plane structure](hexagonal-control-plane.md) — framework-free core, ports, adapters and enforced dependency rules.
