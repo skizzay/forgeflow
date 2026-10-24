@@ -4,10 +4,9 @@ import java.util.Map;
 import javax.sql.DataSource;
 import org.flowable.spring.SpringProcessEngineConfiguration;
 import org.flywaydb.core.Flyway;
-import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.postgresql.Driver;
 import org.springframework.transaction.PlatformTransactionManager;
 
-@ConfigurationProperties("forgeflow.database")
 public record DatabaseSchemas(String domainSchema, String engineSchema) {
     public DatabaseSchemas {
         validate(domainSchema);
@@ -24,9 +23,21 @@ public record DatabaseSchemas(String domainSchema, String engineSchema) {
         }
     }
 
+    static DatabaseSchemas fromJdbcUrl(String url, String engineSchema) {
+        return new DatabaseSchemas(domainSchemaFromJdbcUrl(url), engineSchema);
+    }
+
+    static String domainSchemaFromJdbcUrl(String url) {
+        var properties = Driver.parseURL(url, null);
+        if (properties == null) throw new IllegalArgumentException("A PostgreSQL JDBC URL is required");
+        String schema = properties.getProperty("currentSchema");
+        validate(schema);
+        return schema;
+    }
+
     Flyway flyway(DataSource source) {
         return Flyway.configure().dataSource(source).schemas(domainSchema, engineSchema)
-                .defaultSchema(domainSchema).placeholders(Map.of("domainSchema", domainSchema))
+                .defaultSchema(domainSchema)
                 .cleanDisabled(true).load();
     }
 

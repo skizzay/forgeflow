@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import javax.sql.DataSource;
 import org.flowable.engine.ProcessEngine;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,7 +44,7 @@ class BootstrapIntegrationTest {
         loginPassword = password;
         assertThat(adminUrl).as("Run scripts/verify-bootstrap.sh or supply a disposable PostgreSQL admin database").isNotBlank();
         database = "bootstrap_" + UUID.randomUUID().toString().replace("-", "");
-        url = adminUrl.substring(0, adminUrl.lastIndexOf('/') + 1) + database;
+        url = adminUrl.substring(0, adminUrl.lastIndexOf('/') + 1) + database + "?currentSchema=forgeflow";
         try (var connection = DriverManager.getConnection(adminUrl, user, password);
              var statement = connection.createStatement()) {
             statement.execute("create database " + database);
@@ -83,17 +84,17 @@ class BootstrapIntegrationTest {
         String definition;
         try (var context = start(true)) {
             var jdbc = context.getBean(JdbcTemplate.class);
-            assertThat(jdbc.queryForObject("select count(*) from forgeflow.flyway_schema_history where success and version is not null", Integer.class)).isEqualTo(1);
+            assertThat(jdbc.queryForObject("select count(*) from flyway_schema_history where success and version is not null", Integer.class)).isEqualTo(1);
             assertThat(jdbc.queryForObject("select count(*) from information_schema.tables where table_schema='forgeflow' and table_name <> 'flyway_schema_history'", Integer.class)).isEqualTo(10);
             assertThat(jdbc.queryForObject("select count(*) from information_schema.tables where table_schema='flowable'", Integer.class)).isPositive();
-            jdbc.update("insert into forgeflow.repository(id,github_id,full_name) values (?,1,'public/fixture')", UUID.randomUUID());
-            definition = jdbc.queryForObject("select definition_id from forgeflow.workflow_definition", String.class);
+            jdbc.update("insert into repository(id,github_id,full_name) values (?,1,'public/fixture')", UUID.randomUUID());
+            definition = jdbc.queryForObject("select definition_id from workflow_definition", String.class);
         }
         try (var ignored = start(true)) { /* Repeated migrations are a no-op. */ }
         try (var context = start(false)) {
             var jdbc = context.getBean(JdbcTemplate.class);
-            assertThat(jdbc.queryForObject("select full_name from forgeflow.repository", String.class)).isEqualTo("public/fixture");
-            assertThat(jdbc.queryForObject("select definition_id from forgeflow.workflow_definition", String.class)).isEqualTo(definition);
+            assertThat(jdbc.queryForObject("select full_name from repository", String.class)).isEqualTo("public/fixture");
+            assertThat(jdbc.queryForObject("select definition_id from workflow_definition", String.class)).isEqualTo(definition);
             assertThat(context.getBean(ProcessEngine.class).getRepositoryService().createDeploymentQuery().count()).isEqualTo(1);
         }
     }
@@ -107,16 +108,16 @@ class BootstrapIntegrationTest {
             var jdbc = context.getBean(JdbcTemplate.class);
             var engine = context.getBean(ProcessEngine.class);
             UUID repository = UUID.randomUUID(), epic = UUID.randomUUID(), story = UUID.randomUUID();
-            jdbc.update("insert into forgeflow.repository(id,github_id,full_name) values (?,1,'public/fixture')", repository);
-            jdbc.update("insert into forgeflow.epic(id,repository_id,issue_number) values (?,?,1)", epic, repository);
-            jdbc.update("insert into forgeflow.story(id,epic_id,repository_id,issue_number) values (?,?,?,7)", story, epic, repository);
-            definition = jdbc.queryForObject("select definition_id from forgeflow.workflow_definition", String.class);
+            jdbc.update("insert into repository(id,github_id,full_name) values (?,1,'public/fixture')", repository);
+            jdbc.update("insert into epic(id,repository_id,issue_number) values (?,?,1)", epic, repository);
+            jdbc.update("insert into story(id,epic_id,repository_id,issue_number) values (?,?,?,7)", story, epic, repository);
+            definition = jdbc.queryForObject("select definition_id from workflow_definition", String.class);
             var transaction = new TransactionTemplate(context.getBean(PlatformTransactionManager.class));
             String pinnedDefinition = definition;
             instance = transaction.execute(status -> {
                 var process = engine.getRuntimeService().startProcessInstanceById(pinnedDefinition,
                         Map.of("planRevision", "fixture-plan-v1", "configurationDigest", "a".repeat(64)));
-                jdbc.update("insert into forgeflow.workflow_run(id,story_id,workflow_key,workflow_version,process_definition_id,process_instance_id,plan_revision,configuration_sha256,approval_id,approved_by,approved_at) "
+                jdbc.update("insert into workflow_run(id,story_id,workflow_key,workflow_version,process_definition_id,process_instance_id,plan_revision,configuration_sha256,approval_id,approved_by,approved_at) "
                         + "values (?,?,'bootstrap',1,?,?,?, ?,?,'test-fixture-not-human-approval',now())",
                         run, story, pinnedDefinition, process.getId(), "fixture-plan-v1", "a".repeat(64), UUID.randomUUID());
                 return process.getId();
@@ -139,12 +140,12 @@ class BootstrapIntegrationTest {
             assertThat(process.getProcessDefinitionId()).isEqualTo(definition);
             assertThat(engine.getRuntimeService().getActiveActivityIds(instance)).containsExactly("awaitImplementation");
             assertThat(engine.getRuntimeService().getVariable(instance, "planRevision")).isEqualTo("fixture-plan-v1");
-            var row = jdbc.queryForMap("select * from forgeflow.workflow_run where id=?", run);
+            var row = jdbc.queryForMap("select * from workflow_run where id=?", run);
             assertThat(row).containsEntry("process_definition_id", definition)
                     .containsEntry("plan_revision", "fixture-plan-v1")
                     .containsEntry("configuration_sha256", "a".repeat(64))
                     .containsEntry("approved_by", "test-fixture-not-human-approval");
-            assertThat(jdbc.queryForObject("select state from forgeflow.story", String.class)).isEqualTo("DRAFT");
+            assertThat(jdbc.queryForObject("select state from story", String.class)).isEqualTo("DRAFT");
         }
     }
 
@@ -156,14 +157,14 @@ class BootstrapIntegrationTest {
             assertThat(context.getBeansOfType(PlatformTransactionManager.class)).hasSize(1);
             assertThat(context.getBean(PlatformTransactionManager.class)).isInstanceOf(JdbcTransactionManager.class);
             var transaction = new TransactionTemplate(context.getBean(PlatformTransactionManager.class));
-            String definition = jdbc.queryForObject("select definition_id from forgeflow.workflow_definition", String.class);
+            String definition = jdbc.queryForObject("select definition_id from workflow_definition", String.class);
             assertThatThrownBy(() -> transaction.executeWithoutResult(status -> {
                 engine.getRuntimeService().startProcessInstanceById(definition);
-                jdbc.update("insert into forgeflow.repository(id,github_id,full_name) values (?,1,'public/rollback')", UUID.randomUUID());
+                jdbc.update("insert into repository(id,github_id,full_name) values (?,1,'public/rollback')", UUID.randomUUID());
                 throw new IllegalStateException("simulated domain rejection");
             })).isInstanceOf(IllegalStateException.class);
             assertThat(engine.getRuntimeService().createProcessInstanceQuery().count()).isZero();
-            assertThat(jdbc.queryForObject("select count(*) from forgeflow.repository", Integer.class)).isZero();
+            assertThat(jdbc.queryForObject("select count(*) from repository", Integer.class)).isZero();
         }
     }
 
@@ -175,7 +176,7 @@ class BootstrapIntegrationTest {
     @Test
     void runtimeRefusesChangedMigrationChecksum() {
         try (var context = start(true)) {
-            context.getBean(JdbcTemplate.class).update("update forgeflow.flyway_schema_history set checksum=0 where version='1'");
+            context.getBean(JdbcTemplate.class).update("update flyway_schema_history set checksum=0 where version='1'");
         }
         assertThatThrownBy(() -> start(false)).hasStackTraceContaining("checksum mismatch");
     }
@@ -183,7 +184,7 @@ class BootstrapIntegrationTest {
     @Test
     void changedRegisteredContentFailsStartupRatherThanMutatingDefinition() {
         try (var context = start(true)) {
-            context.getBean(JdbcTemplate.class).update("update forgeflow.workflow_definition set content_sha256=?", "0".repeat(64));
+            context.getBean(JdbcTemplate.class).update("update workflow_definition set content_sha256=?", "0".repeat(64));
         }
         assertThatThrownBy(() -> start(false)).hasStackTraceContaining("Bootstrap registry incompatible");
     }
@@ -206,7 +207,7 @@ class BootstrapIntegrationTest {
         loginPassword = temporaryPassword;
         try (var context = start(false)) {
             var jdbc = context.getBean(JdbcTemplate.class);
-            jdbc.update("insert into forgeflow.repository(id,github_id,full_name) values (?,1,'public/dml')", UUID.randomUUID());
+            jdbc.update("insert into repository(id,github_id,full_name) values (?,1,'public/dml')", UUID.randomUUID());
             assertThatThrownBy(() -> jdbc.execute("create table forgeflow.unwanted(id int)"))
                     .hasStackTraceContaining("permission denied");
             assertThatThrownBy(() -> jdbc.execute("create table flowable.unwanted(id int)"))
@@ -216,14 +217,19 @@ class BootstrapIntegrationTest {
     }
 
     @Test
-    void configuredSchemasMigrateAndRestartWithoutCreatingDefaultSchemas() {
-        var schemas = new DatabaseSchemas("ff_domain", "ff_engine");
+    void configuredSchemasMigrateAndRestartWithoutCreatingDefaultSchemas() throws Exception {
+        url = url.replace("currentSchema=forgeflow", "currentSchema=ff_domain");
+        var schemas = DatabaseSchemas.fromJdbcUrl(url, "ff_engine");
         DatabaseMigrator.migrate(new DriverManagerDataSource(url, login, loginPassword), schemas);
         for (int restart = 0; restart < 2; restart++) {
-            try (var context = start(false, "--forgeflow.database.domain-schema=ff_domain",
-                    "--forgeflow.database.engine-schema=ff_engine")) {
+            try (var context = start(false, "--forgeflow.database.engine-schema=ff_engine")) {
                 var jdbc = context.getBean(JdbcTemplate.class);
-                assertThat(jdbc.queryForObject("select count(*) from ff_domain.workflow_definition", Integer.class)).isEqualTo(1);
+                assertThat(jdbc.queryForObject("select count(*) from workflow_definition", Integer.class)).isEqualTo(1);
+                try (var first = context.getBean(DataSource.class).getConnection();
+                     var second = context.getBean(DataSource.class).getConnection()) {
+                    assertThat(first.getSchema()).isEqualTo("ff_domain");
+                    assertThat(second.getSchema()).isEqualTo("ff_domain");
+                }
                 assertThat(jdbc.queryForObject("select count(*) from information_schema.tables where table_schema='ff_engine'", Integer.class)).isPositive();
                 assertThat(jdbc.queryForObject("select count(*) from information_schema.schemata where schema_name in ('forgeflow','flowable')", Integer.class)).isZero();
             }
