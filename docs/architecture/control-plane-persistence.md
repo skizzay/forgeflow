@@ -119,7 +119,9 @@ handlers must delegate the whole imperative transaction to a bounded blocking
 executor (for example `Mono.fromCallable(...).subscribeOn(Schedulers.boundedElastic())`),
 never block a Netty event loop or span a JDBC transaction across reactive hops.
 No R2DBC conversion is implied. Runtime binds to loopback by default. Only GET `/actuator/health` is public, with
-status only; other requests are denied. Worker and GitHub routes do not exist yet.
+status only; other routes are denied except the explicitly enabled HMAC webhook
+ingress described below. The optional [verified webhook ingress](webhook-inbox.md) is implemented in #8;
+worker and other GitHub routes do not exist yet.
 The local Docker command binds inside its container and publishes only host loopback.
 No external identity service, tunnel or Docker host socket is configured. The
 execution plane remains a separate Java controller and isolated job containers.

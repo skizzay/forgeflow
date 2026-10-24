@@ -11,6 +11,8 @@ import java.util.Map;
 import java.util.UUID;
 import javax.sql.DataSource;
 import org.flowable.engine.ProcessEngine;
+import org.flywaydb.core.Flyway;
+import io.forgeflow.controlplane.webhook.application.port.in.ProcessWebhook;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -84,8 +86,8 @@ class BootstrapIntegrationTest {
         String definition;
         try (var context = start(true)) {
             var jdbc = context.getBean(JdbcTemplate.class);
-            assertThat(jdbc.queryForObject("select count(*) from flyway_schema_history where success and version is not null", Integer.class)).isEqualTo(1);
-            assertThat(jdbc.queryForObject("select count(*) from information_schema.tables where table_schema='forgeflow' and table_name <> 'flyway_schema_history'", Integer.class)).isEqualTo(10);
+            assertThat(jdbc.queryForObject("select count(*) from flyway_schema_history where success and version is not null", Integer.class)).isEqualTo(2);
+            assertThat(jdbc.queryForObject("select count(*) from information_schema.tables where table_schema='forgeflow' and table_name <> 'flyway_schema_history'", Integer.class)).isEqualTo(11);
             assertThat(jdbc.queryForObject("select count(*) from information_schema.tables where table_schema='flowable'", Integer.class)).isPositive();
             jdbc.update("insert into repository(id,github_id,full_name) values (?,1,'public/fixture')", UUID.randomUUID());
             definition = jdbc.queryForObject("select definition_id from workflow_definition", String.class);
@@ -233,6 +235,25 @@ class BootstrapIntegrationTest {
                 assertThat(jdbc.queryForObject("select count(*) from information_schema.tables where table_schema='ff_engine'", Integer.class)).isPositive();
                 assertThat(jdbc.queryForObject("select count(*) from information_schema.schemata where schema_name in ('forgeflow','flowable')", Integer.class)).isZero();
             }
+        }
+    }
+
+    @Test
+    void versionOneInboxRowsSurviveUpgradeWithoutBecomingVerifiedEvents() {
+        var source = new DriverManagerDataSource(url, login, loginPassword);
+        var schemas = DatabaseSchemas.fromJdbcUrl(url, "flowable");
+        Flyway.configure().configuration(schemas.flyway(source).getConfiguration()).target("1").load().migrate();
+        var legacyJdbc = new JdbcTemplate(source);
+        UUID delivery = UUID.randomUUID();
+        legacyJdbc.update("insert into webhook_inbox(delivery_id,event_type) values (?,'ping')", delivery);
+        DatabaseMigrator.migrate(source, schemas);
+        try (var runtime = start(false, "--forgeflow.github.webhook.enabled=true",
+                "--forgeflow.github.webhook.secret=" + UUID.randomUUID(),
+                "--forgeflow.github.webhook.processing-enabled=false")) {
+            assertThat(runtime.getBean(ProcessWebhook.class).processOne()).isFalse();
+            var row = runtime.getBean(JdbcTemplate.class).queryForMap("select * from webhook_inbox where delivery_id=?", delivery);
+            assertThat(row).containsEntry("state", "RECEIVED").containsEntry("payload_sha256", null);
+            assertThat(runtime.getBean(JdbcTemplate.class).queryForObject("select count(*) from webhook_event", Integer.class)).isZero();
         }
     }
 
