@@ -10,6 +10,13 @@ spring:
   main:
     banner-mode: "off"
 forgeflow:
+  github:
+    webhook:
+      enabled: ${FORGEFLOW_GITHUB_WEBHOOK_ENABLED:false}
+      secret: ${FORGEFLOW_GITHUB_WEBHOOK_SECRET:}
+      max-bytes: 1048576
+      processing-enabled: true
+      poll-interval: PT1S
   database:
     engine-schema: ${FORGEFLOW_ENGINE_SCHEMA:flowable}
 server:

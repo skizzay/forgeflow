@@ -2,23 +2,23 @@
 
 Issue: [#8](https://github.com/skizzay/forgeflow/issues/8).
 Parent: [Foundation #1](https://github.com/skizzay/forgeflow/issues/1).
-Status: **draft plan; dependencies unsatisfied**.
-Dependencies: #7 bootstrap schema.
+Status: implementation under review in [PR #23](https://github.com/skizzay/forgeflow/pull/23).
+Dependencies: #7 and #32 integrated into `epic/1-foundation` via #31/#34.
 
-## Smallest coherent implementation
+## Delivered implementation
 
-Accept GitHub App webhooks only after validating X-Hub-Signature-256 over the exact raw request bytes using a constant-time comparison. Bound request size, validate delivery/event headers and avoid logging payloads or signatures. The signing secret is external configuration, distinct from the GitHub App PEM.
+Opt-in, bounded WebFlux endpoint with raw-body HMAC verification and metadata-only
+transactional PostgreSQL inbox. Duplicate acknowledgement, changed-identity
+rejection, and independent idempotent scheduled event classification. V2 preserves
+legacy inbox rows without treating them as verified. No dispatch, App API calls,
+PEM access, plan approval or merge effects.
 
-Insert the delivery ID, event type, receipt time and required sanitized metadata into a durable inbox transaction before acknowledging. Enforce a database uniqueness constraint on delivery ID; duplicate delivery is an acknowledgement, not duplicate work. Do not run job dispatch or GitHub side effects on the HTTP request thread. Decide explicitly which encrypted/retained payload fields are required for asynchronous processing.
-
-Verification matrix:
-- Correct signature accepted; absent, malformed and invalid signatures rejected.
-- Modified body, wrong secret and oversized body rejected.
-- Concurrent duplicate delivery creates one durable inbox item.
-- Crash after commit/before response followed by replay creates no duplicate work.
-- Restart retains pending items; failure before persistence is not acknowledged as accepted.
-
-This draft is a scoped implementation plan, not a webhook service. Schema integration and executable integration tests wait for #7 to merge into the epic branch.
+See [architecture](../architecture/webhook-inbox.md) and
+[configuration guide](../user-guide/github-webhooks.md) for exact contracts,
+privacy choices and verification limits. Runtime/processor tests cover HTTP
+validation, concurrent duplicates, replay and restart, rollback and background
+recovery on real PostgreSQL. The accepted bootstrap's connection-URI schema
+configuration is retained; no SQL schema placeholders are reintroduced.
 
 ## Review and integration
 
@@ -29,6 +29,14 @@ satisfy the requirement that prerequisite PRs merge into the epic branch before
 unlocking dependent execution. Do not merge, retarget, or enable auto-merge without
 explicit human direction. Human approval is required for every merge.
 
-Verification for this initial draft: reviewed current issue dependencies,
-architecture and roadmap, and checked Markdown formatting with `git diff --check`.
-There is no runtime code in this draft and no runtime verification is claimed.
+Verification results and implementation tradeoffs are recorded in PR #23.
+
+## Verification results
+
+Maven verify passed all 22 tests (18 PostgreSQL integration tests and four
+configuration tests), with zero failures/errors/skips. The webhook-specific suite
+contains eight integration scenarios; bootstrap adds a V1-to-V2 legacy-row upgrade
+check. All 49 local Markdown links and explicit-import/POM checks pass;
+`git diff --check` passes. Validation uses synthetic local deliveries, not a live
+GitHub App, and commit-before-response/context-restart injection rather than an
+OS process-kill experiment.
