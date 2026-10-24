@@ -39,3 +39,7 @@ Verify it with `./scripts/verify-bootstrap.sh`. GitHub/worker orchestration is n
 Documentation: [research, requirements, architecture and consumer user guide](docs/README.md).
 
 The [archived Flowable spike](https://github.com/skizzay/forgeflow/blob/c5d8fcab11253eb5529caad8c066ebd13a033d1b/spikes/flowable/README.md) preserves the executable research and reproduction instructions.
+
+The optional [verified GitHub webhook inbox](docs/user-guide/github-webhooks.md)
+accepts signed deliveries into PostgreSQL and classifies them asynchronously.
+Agent dispatch and GitHub publication remain subsequent work.
