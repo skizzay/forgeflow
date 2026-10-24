@@ -33,10 +33,11 @@ Verification results and implementation tradeoffs are recorded in PR #23.
 
 ## Verification results
 
-Maven verify passed all 22 tests (18 PostgreSQL integration tests and four
-configuration tests), with zero failures/errors/skips. The webhook-specific suite
+Maven verify passed all 28 tests (18 PostgreSQL integration tests, four
+configuration tests, five framework-free use-case tests and one ArchUnit
+dependency-rule test), with zero failures/errors/skips. The webhook-specific suite
 contains eight integration scenarios; bootstrap adds a V1-to-V2 legacy-row upgrade
-check. All 49 local Markdown links and explicit-import/POM checks pass;
+check. All 52 local Markdown links and explicit-import/POM checks pass;
 `git diff --check` passes. Validation uses synthetic local deliveries, not a live
 GitHub App, and commit-before-response/context-restart injection rather than an
 OS process-kill experiment.
