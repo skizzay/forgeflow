@@ -1,0 +1,29 @@
+spring:
+  application:
+    name: forgeflow-control-plane
+  datasource:
+    url: ${FORGEFLOW_DB_URL}
+    username: ${FORGEFLOW_DB_USER}
+    password: ${FORGEFLOW_DB_PASSWORD}
+  flyway:
+    enabled: false
+  main:
+    banner-mode: "off"
+forgeflow:
+  database:
+    engine-schema: ${FORGEFLOW_ENGINE_SCHEMA:flowable}
+server:
+  address: 127.0.0.1
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: false
+  health:
+    diskspace:
+      enabled: false
