@@ -86,3 +86,7 @@ module; an additional deployment or Maven module is not needed for these boundar
 Apply the same dependency direction to future worker and orchestration features.
 Keep repository/SCM provider concerns behind outbound ports and human approval,
 idempotency and state-transition policy in their application/domain core.
+
+The [lifecycle feature](lifecycle-states.md) follows the same core/port/adapter
+direction. Its authority adapter defaults to deny-unverified; transition policy
+and transaction orchestration stay in the framework-free application core.

@@ -66,3 +66,8 @@ If a disposable development database was initialized before #32, its V1 checksum
 will differ after this bootstrap SQL change. Recreate it only if its data is
 disposable; otherwise preserve it and review the reconciliation procedure in the
 persistence guide. The application never repairs history or deletes data automatically.
+
+The #14 lifecycle migration adds version/audit records and approval pins. Re-run
+the independent migrator before starting the updated runtime. The lifecycle
+feature has no public command endpoint yet; its default authority denies guarded
+transitions until trusted approval/identity/SCM integrations are installed.

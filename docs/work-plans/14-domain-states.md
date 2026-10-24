@@ -1,39 +1,42 @@
-# #14: Model separate job, story, and epic state machines
+# #14: Separate job, story and epic lifecycle
 
-Issue: [#14](https://github.com/skizzay/forgeflow/issues/14).
-Parent: [Foundation #1](https://github.com/skizzay/forgeflow/issues/1).
-Status: **draft plan; dependencies unsatisfied**.
-Dependencies: #7 bootstrap schema; consume #18 findings.
+Issue: [#14](https://github.com/skizzay/forgeflow/issues/14), parent
+[Foundation #1](https://github.com/skizzay/forgeflow/issues/1).
+Status: implementation under review in [PR #24](https://github.com/skizzay/forgeflow/pull/24).
+Dependencies: #7/#32 integrated into `epic/1-foundation`; #18 research accepted.
 
-## Smallest coherent implementation
+## Delivered scope
 
-Implement separate deterministic transition policies for ForgeFlow jobs, stories and epics. BPMN activity/process state and GitHub PR/check state remain correlated facts, not substitutes for domain state. Store the immutable approved plan/configuration/workflow/activity references used by each execution.
+A framework-free lifecycle core with typed state families, explicit transition
+policies and an input port. JDBC persistence records guarded state/version and
+audit receipts atomically, with pinned approval/execution/attempt identity and
+idempotent command replay. Trusted authorization/reconciliation is an output port
+with a deny-unverified default. No HTTP, dispatch, approval issuance or merge API
+is added. See the [state tables and trust boundaries](../architecture/lifecycle-states.md).
 
-Initial guarded boundaries:
-- Approved plan identity and ready dependencies are required before dispatch.
-- Job SUCCEEDED records execution completion only; it cannot imply story MERGED.
-- Story MERGED requires authoritative GitHub evidence for the expected repository, PR base, head and merge commit.
-- Relevant plan/configuration changes invalidate execution authorization until reapproval.
-- Cancellation, stale-worker completion and retry/escalation have explicit exceptional transitions.
-- Epic integration/release eligibility cannot bypass explicit human approval.
-
-Verification matrix:
-- Table-driven tests reject every unspecified transition.
-- Successful jobs and completed BPMN instances cannot manufacture merge evidence.
-- Stale plan/configuration identities cannot authorize side effects.
-- Restart reloads state and correlation without replaying effects.
-
-This draft is a transition-design plan only. Persisted implementation waits for #7 and consumes the #18 transaction/recovery decision; neither prerequisite is marked satisfied.
+V3 is additive; V1/V2 are unchanged. Policy tests cover all same-family state
+pairs. PostgreSQL tests exercise concurrency, restart, audit rollback, approval
+changes and exact GitHub evidence bindings. Real identity/SCM integrations remain
+their existing stories and must supply verified facts before guarded transitions
+can operate in production.
 
 ## Review and integration
 
-This story branch was created from `epic/1-foundation`, which was created from
-main. The user explicitly requested story PRs targeting main; this is a review
-target exception to the documented epic-target workflow. A PR into main does not
-satisfy the requirement that prerequisite PRs merge into the epic branch before
-unlocking dependent execution. Do not merge, retarget, or enable auto-merge without
-explicit human direction. Human approval is required for every merge.
+This story branch originated from `epic/1-foundation`. It was updated with the
+integrated bootstrap and the approved main documentation/webhook baseline. #8
+is not a dependency of #14; importing approved main into this story does not
+claim #8 has merged into the epic branch or unlock #15.
 
-Verification for this initial draft: reviewed current issue dependencies,
-architecture and roadmap, and checked Markdown formatting with `git diff --check`.
-There is no runtime code in this draft and no runtime verification is claimed.
+The user explicitly requested story PRs into main as a review-target exception.
+PR #24 will be marked ready for human review after checks; do not merge, retarget
+or enable auto-merge without explicit approval. Dependent work still requires
+prerequisite implementation integration into the appropriate epic branch.
+
+## Verification
+
+Maven verify passed all 43 tests (28 PostgreSQL integration tests, nine pure
+policy/use-case tests, four configuration tests and two architecture tests), with
+zero failures/errors/skips. Lifecycle coverage includes all 97 same-family state
+pairs and ten PostgreSQL scenarios. All 55 local Markdown links, import/POM checks
+and `git diff --check` pass. Authority/SCM observations are explicitly trusted
+fixtures, not live identity or GitHub integration evidence.

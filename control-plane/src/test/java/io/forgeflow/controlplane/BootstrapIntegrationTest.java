@@ -86,8 +86,8 @@ class BootstrapIntegrationTest {
         String definition;
         try (var context = start(true)) {
             var jdbc = context.getBean(JdbcTemplate.class);
-            assertThat(jdbc.queryForObject("select count(*) from flyway_schema_history where success and version is not null", Integer.class)).isEqualTo(2);
-            assertThat(jdbc.queryForObject("select count(*) from information_schema.tables where table_schema='forgeflow' and table_name <> 'flyway_schema_history'", Integer.class)).isEqualTo(11);
+            assertThat(jdbc.queryForObject("select count(*) from flyway_schema_history where success and version is not null", Integer.class)).isEqualTo(3);
+            assertThat(jdbc.queryForObject("select count(*) from information_schema.tables where table_schema='forgeflow' and table_name <> 'flyway_schema_history'", Integer.class)).isEqualTo(12);
             assertThat(jdbc.queryForObject("select count(*) from information_schema.tables where table_schema='flowable'", Integer.class)).isPositive();
             jdbc.update("insert into repository(id,github_id,full_name) values (?,1,'public/fixture')", UUID.randomUUID());
             definition = jdbc.queryForObject("select definition_id from workflow_definition", String.class);
