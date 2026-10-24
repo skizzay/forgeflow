@@ -10,9 +10,10 @@ public final class DatabaseMigrator {
 
     public static void main(String[] args) {
         var environment = System.getenv();
-        var schemas = new DatabaseSchemas(environment.getOrDefault("FORGEFLOW_DOMAIN_SCHEMA", "forgeflow"),
+        String url = required("FORGEFLOW_DB_URL");
+        var schemas = DatabaseSchemas.fromJdbcUrl(url,
                 environment.getOrDefault("FORGEFLOW_ENGINE_SCHEMA", "flowable"));
-        var source = new DriverManagerDataSource(required("FORGEFLOW_DB_URL"),
+        var source = new DriverManagerDataSource(url,
                 required("FORGEFLOW_DB_USER"), required("FORGEFLOW_DB_PASSWORD"));
         migrate(source, schemas);
     }

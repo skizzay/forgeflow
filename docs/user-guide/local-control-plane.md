@@ -38,12 +38,20 @@ published and no Docker socket is mounted. It does not configure a deployment.
 To run outside Compose, build with Java 21/Maven, supply `FORGEFLOW_DB_URL`,
 `FORGEFLOW_DB_USER`, `FORGEFLOW_DB_PASSWORD` from your environment/secret store and
 run the runtime JAR. The separate `-migrate.jar` uses those same environment
-variables directly and does not load Spring YAML. Set optional
-`FORGEFLOW_DOMAIN_SCHEMA` and `FORGEFLOW_ENGINE_SCHEMA` consistently for both
-commands (defaults `forgeflow` and `flowable`). Runtime also accepts the equivalent
-`forgeflow.database` YAML settings. Schema names must be distinct dedicated
-lowercase identifiers of at most 63 characters; existing schemas are not renamed
-when these settings change. Use a migration identity for the explicit maintenance command
+variables directly and does not load Spring YAML. `FORGEFLOW_DB_URL` must include
+one dedicated domain schema, for example:
+
+```text
+jdbc:postgresql://db:5432/forgeflow?currentSchema=forgeflow
+```
+
+Use `&currentSchema=forgeflow` when the URI already has other parameters. The
+runtime and migrator derive the domain schema from the same URI. Set optional
+`FORGEFLOW_ENGINE_SCHEMA` consistently for both commands (default `flowable`).
+The former `FORGEFLOW_DOMAIN_SCHEMA` / runtime `domain-schema` setting is removed.
+Schema names must be distinct dedicated lowercase identifiers of at most 63
+characters; existing schemas are not renamed when these settings change.
+Use a migration identity for the explicit maintenance command
 and a distinct DML-only identity for runtime; see the
 [persistence architecture](../architecture/control-plane-persistence.md).
 Do not put real credentials in source, command arguments, tracked environment
@@ -53,3 +61,8 @@ PostgreSQL server; they create and remove uniquely named fixture databases.
 A failed runtime startup on an empty database is expected: run maintenance first.
 A checksum/registry mismatch needs investigation and a new migration/version; do
 not repair checksums or overwrite deployed definitions to bypass it.
+
+If a disposable development database was initialized before #32, its V1 checksum
+will differ after this bootstrap SQL change. Recreate it only if its data is
+disposable; otherwise preserve it and review the reconciliation procedure in the
+persistence guide. The application never repairs history or deletes data automatically.

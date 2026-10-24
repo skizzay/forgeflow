@@ -27,13 +27,29 @@ Sources checked for this implementation:
 One modular Spring Boot control plane uses one datasource and one Spring Boot auto-configured JDBC
 transaction manager. `forgeflow` contains Flyway-managed domain tables, registry
 metadata, pinned run identity, dispatch skeleton and webhook delivery metadata.
-`flowable` contains engine-managed tables. Both names are configurable through
-`FORGEFLOW_DOMAIN_SCHEMA` / `FORGEFLOW_ENGINE_SCHEMA` (defaults shown here),
-or runtime YAML `forgeflow.database.domain-schema` / `engine-schema`. Dedicated
-lowercase PostgreSQL identifiers are validated, must differ, and cannot target
-public/system schemas. Flyway placeholders, runtime validation, engine metadata
-and registry queries use the same settings; changing a name selects a different
-schema, it does not rename/move existing data. There are no cross-schema foreign keys
+`flowable` contains engine-managed tables. The domain schema comes solely from
+pgJDBC `currentSchema` in `FORGEFLOW_DB_URL`, for example
+`jdbc:postgresql://db:5432/forgeflow?currentSchema=forgeflow`. The separate engine
+schema remains configurable with `FORGEFLOW_ENGINE_SCHEMA` / runtime YAML
+`forgeflow.database.engine-schema` (default `flowable`). Both are validated,
+distinct dedicated lowercase identifiers; missing/multiple/current-public/system
+schemas are rejected. The driver initializes every physical connection's search
+path, equally for Hikari runtime connections and the standalone migrator.
+At pool initialization, Hikari's default schema is also derived from that URI so
+it restores the domain schema when Flowable temporarily changes a borrowed
+connection's schema. This is not another user-configurable domain-schema setting.
+Flowable 8 also changes schema on every command when its session factory has an
+explicit schema. After startup validates the engine schema, runtime clears that
+session-factory override while retaining qualified engine table SQL and engine
+schema metadata. This prevents an engine call from changing the search path in
+the shared domain transaction. Regression tests cover unqualified domain writes
+alongside engine operations and pool borrowing. Recheck this Flowable integration
+point on engine upgrades.
+Flyway creates/manages the configured schemas and default schema explicitly;
+domain migration SQL and registry queries use unqualified names. No SQL schema
+placeholder or independent domain-schema setting remains. Changing the URI selects
+a different schema; it does not rename or move existing data.
+There are no cross-schema foreign keys
 into engine internals; engine IDs are opaque correlation values. The registry
 uses a composite foreign key so a run's key/version cannot name another engine definition.
 
@@ -107,3 +123,15 @@ status only; other requests are denied. Worker and GitHub routes do not exist ye
 The local Docker command binds inside its container and publishes only host loopback.
 No external identity service, tunnel or Docker host socket is configured. The
 execution plane remains a separate Java controller and isolated job containers.
+
+## Connection-schema refinement (#32)
+
+[Issue #32](https://github.com/skizzay/forgeflow/issues/32) removes the bootstrap
+SQL schema placeholders in favor of JDBC `currentSchema`. The original V1 file is
+changed before any supported deployment baseline is established. Existing databases
+initialized by the earlier bootstrap revision retain its old Flyway checksum and
+will fail validation; there is no automatic repair or data deletion. Recreate only
+disposable development databases, or retain the database and perform an explicitly
+reviewed migration-history reconciliation after backup. Do not apply this as an
+unreviewed upgrade to a populated deployment. Future deployed versioned migrations
+must remain immutable.
