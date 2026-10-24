@@ -17,7 +17,7 @@ services:
     image: maven:3.9.9-eclipse-temurin-21
     working_dir: /workspace
     environment:
-      FORGEFLOW_DB_URL: jdbc:postgresql://db:5432/forgeflow
+      FORGEFLOW_DB_URL: jdbc:postgresql://db:5432/forgeflow?currentSchema=forgeflow
       FORGEFLOW_DB_USER: forgeflow_local
       FORGEFLOW_DB_PASSWORD: local-only-not-for-deployment
       MAVEN_OPTS: -Xmx384m
