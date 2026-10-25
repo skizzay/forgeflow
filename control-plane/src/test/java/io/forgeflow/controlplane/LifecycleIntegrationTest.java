@@ -4,21 +4,24 @@ import io.forgeflow.controlplane.lifecycle.adapter.out.persistence.JdbcLifecycle
 import io.forgeflow.controlplane.lifecycle.adapter.out.persistence.SpringLifecycleTransactions;
 import io.forgeflow.controlplane.lifecycle.application.LifecycleService;
 import io.forgeflow.controlplane.lifecycle.application.port.in.ChangeLifecycle;
-import io.forgeflow.controlplane.lifecycle.domain.ApprovalIdentity;
-import io.forgeflow.controlplane.lifecycle.domain.AttemptIdentity;
 import io.forgeflow.controlplane.lifecycle.domain.AuthorityFacts;
 import io.forgeflow.controlplane.lifecycle.domain.EntityKind;
 import io.forgeflow.controlplane.lifecycle.domain.EntityRef;
 import io.forgeflow.controlplane.lifecycle.domain.EpicState;
-import io.forgeflow.controlplane.lifecycle.domain.ExecutionIdentity;
 import io.forgeflow.controlplane.lifecycle.domain.JobState;
 import io.forgeflow.controlplane.lifecycle.domain.LifecycleException;
 import io.forgeflow.controlplane.lifecycle.domain.LifecycleState;
-import io.forgeflow.controlplane.lifecycle.domain.MergeTarget;
-import io.forgeflow.controlplane.lifecycle.domain.PullRequestObservation;
 import io.forgeflow.controlplane.lifecycle.domain.StoryState;
 import io.forgeflow.controlplane.lifecycle.domain.TransitionCommand;
-import io.forgeflow.controlplane.lifecycle.domain.TransitionReceipt;
+import io.forgeflow.controlplane.lifecycle.domain.approval.ApprovalIdentity;
+import io.forgeflow.controlplane.lifecycle.domain.evidence.ActorAuthority;
+import io.forgeflow.controlplane.lifecycle.domain.evidence.CompletionEvidence;
+import io.forgeflow.controlplane.lifecycle.domain.evidence.DeliveryEvidence;
+import io.forgeflow.controlplane.lifecycle.domain.evidence.RecoveryEvidence;
+import io.forgeflow.controlplane.lifecycle.domain.job.AttemptIdentity;
+import io.forgeflow.controlplane.lifecycle.domain.job.ExecutionIdentity;
+import io.forgeflow.controlplane.lifecycle.domain.story.MergeTarget;
+import io.forgeflow.controlplane.lifecycle.domain.story.PullRequestObservation;
 import java.sql.DriverManager;
 import java.time.Clock;
 import java.util.ArrayList;
@@ -38,6 +41,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.transaction.PlatformTransactionManager;
 import tools.jackson.databind.json.JsonMapper;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -83,7 +87,9 @@ class LifecycleIntegrationTest {
     }
     private AuthorityFacts verified(ApprovalIdentity pin,boolean cancellation,boolean recovery,boolean dependencies,boolean quiescent,
                                     JobState outcome,PullRequestObservation observation,boolean checks,UUID finalApproval) {
-        return new AuthorityFacts("fixture-operator",pin,cancellation,recovery,dependencies,quiescent,outcome,observation,checks,finalApproval,worker);
+        return new AuthorityFacts(new ActorAuthority("fixture-operator",pin,cancellation,recovery,worker),
+                new RecoveryEvidence(quiescent,outcome), new DeliveryEvidence(dependencies,observation),
+                new CompletionEvidence(checks,finalApproval));
     }
     private void restart() {
         if(context!=null)context.close();
@@ -156,9 +162,9 @@ class LifecycleIntegrationTest {
         rejects(new TransitionCommand(complete.commandId(),complete.entity(),complete.actorId(),complete.expectedState(),complete.nextState(),1,approval,execution,
                 new AttemptIdentity(attemptId,worker,2)),LifecycleException.Kind.UNAUTHORIZED);
         var known = facts.get();
-        facts.set(new AuthorityFacts(known.actorId(),known.currentApproval(),known.cancellationAuthorized(),known.recoveryAuthorized(),
-                known.dependenciesMerged(),known.externalEffectsQuiescent(),known.reconciledOutcome(),known.pullRequest(),
-                known.integrationChecksPassed(),known.finalHumanApprovalId(),UUID.randomUUID()));
+        var actor = known.actor();
+        facts.set(new AuthorityFacts(new ActorAuthority(actor.actorId(),actor.currentApproval(),actor.cancellationAuthorized(),
+                actor.recoveryAuthorized(),UUID.randomUUID()),known.recovery(),known.delivery(),known.completion()));
         rejects(complete,LifecycleException.Kind.UNAUTHORIZED); // knowing an attempt/fence does not authenticate its owner
         facts.set(known);
         rejects(job(JobState.RUNNING,JobState.RECONCILING,1),LifecycleException.Kind.UNAUTHORIZED);
@@ -207,6 +213,8 @@ class LifecycleIntegrationTest {
         rejects(command(EntityKind.EPIC,epic,EpicState.APPROVED,EpicState.ACTIVE,1),LifecycleException.Kind.IDENTITY_MISMATCH);
         service.transition(command(EntityKind.EPIC,epic,EpicState.APPROVED,EpicState.DRAFT,1));
         assertThat(jdbc.queryForObject("select approved_identity is null from epic",Boolean.class)).isTrue();
+        assertThat(jdbc.queryForObject("select identity->'approval'->>'approvalId' from lifecycle_transition "
+                + "where entity_kind='EPIC' and to_state='DRAFT'",String.class)).isEqualTo(approval.approvalId().toString());
         var approve=new TransitionCommand(UUID.randomUUID(),new EntityRef(EntityKind.EPIC,epic),"fixture-operator",EpicState.DRAFT,EpicState.APPROVED,2,revised,null,null);
         service.transition(approve);
         service.transition(new TransitionCommand(UUID.randomUUID(),approve.entity(),approve.actorId(),EpicState.APPROVED,EpicState.ACTIVE,3,revised,null,null));

@@ -89,4 +89,5 @@ idempotency and state-transition policy in their application/domain core.
 
 The [lifecycle feature](lifecycle-states.md) follows the same core/port/adapter
 direction. Its authority adapter defaults to deny-unverified; transition policy
-and transaction orchestration stay in the framework-free application core.
+belongs to its job/story/epic domain entities and focused domain policies;
+transaction and replay orchestration stay in the framework-free application core.

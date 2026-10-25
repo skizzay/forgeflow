@@ -1,6 +1,8 @@
-package io.forgeflow.controlplane.lifecycle.domain;
+package io.forgeflow.controlplane.lifecycle.domain.approval;
 
+import io.forgeflow.controlplane.lifecycle.domain.LifecycleException;
 import java.util.UUID;
+
 public record ApprovalIdentity(UUID approvalId, String planRevision, String configurationSha256) {
     public ApprovalIdentity {
         if (approvalId == null || planRevision == null || !planRevision.matches("[A-Za-z0-9._:-]{1,128}")

@@ -1,5 +1,8 @@
 package io.forgeflow.controlplane.lifecycle.domain;
 
+import io.forgeflow.controlplane.lifecycle.domain.approval.ApprovalIdentity;
+import io.forgeflow.controlplane.lifecycle.domain.job.AttemptIdentity;
+import io.forgeflow.controlplane.lifecycle.domain.job.ExecutionIdentity;
 import java.util.Objects;
 import java.util.UUID;
 

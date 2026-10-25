@@ -1,4 +1,4 @@
-package io.forgeflow.controlplane.lifecycle.domain;
+package io.forgeflow.controlplane.lifecycle.domain.story;
 
 public record PullRequestObservation(MergeTarget target, boolean merged, String mergeCommitSha) {
     public boolean confirms(MergeTarget expected, boolean requireMerge) {

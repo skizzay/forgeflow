@@ -13,12 +13,55 @@ core. The JDBC adapter updates the existing job/story/epic tables. Spring suppli
 the transaction adapter and composes a default deny-unverified authority adapter.
 There is no HTTP endpoint, scheduler, GitHub client or Docker action in this story.
 
-Flowable owns process/activity progression. The lifecycle service owns guarded
+Flowable owns process/activity progression. The domain entities own guarded
 ForgeFlow domain transitions; it does not sequence or complete BPMN activities.
 GitHub PR/check state is independent authoritative evidence. DAG eligibility is
 an independently verified prerequisite, not a workflow-generated decision. Job
 SUCCEEDED changes only the job; it cannot imply story MERGED, epic COMPLETED,
 BPMN completion, a mainline merge or release.
+
+## Domain composition
+
+The model is organized by concept within the existing lifecycle hexagon, rather
+than using project-wide entities/services folders. These are in-process domain
+boundaries, not separate deployments or database schemas.
+
+| Package | Building blocks | Responsibility |
+|---|---|---|
+| `domain.job` | `Job` entity; execution/attempt identities and lease evidence; job transitions and reconciliation policy | Pinned execution, authenticated attempt ownership, terminal outcomes and bounded recovery |
+| `domain.story` | `Story` entity; merge target and PR observation values; story transitions | Readiness, approval invalidation and exact verified PR binding |
+| `domain.epic` | `Epic` entity and epic transitions | Plan approval, activation and final completion gates |
+| `domain.approval` | Approval identity value and shared approval policy | Current/stored approval equality and parent approval consistency |
+| `domain.evidence` | Actor authority, recovery, delivery and completion values | Separate trusted observations with explicit meanings |
+| `domain` | Entity reference, parent context, closed state vocabulary, command, receipt and failures | Small common contract for transactional lifecycle operations |
+
+`Job`, `Story` and `Epic` are immutable aggregate roots whose equality follows
+entity identity across versions. Value objects retain structural equality. Their transition methods
+check the addressed identity, expected state/version, allowed transition and
+required evidence, then return a new entity version. Approval pinning,
+invalidation and cancellation behavior belongs to those entities. Entity
+construction is also used for persistence rehydration; it does not confer
+permission to execute or persist a transition. The common sealed state families
+remain together because this Maven module uses Java's unnamed module.
+
+The generic `StateSnapshot` has been removed. The repository loads a typed root
+with parent/completion observations under the existing locks. A child does not
+embed or mutate its parent entity. `ApprovalPolicy` composes cross-root identity
+rules; `ReconciliationPolicy` combines recovery authority, quiescence and lease
+observations. Each entity receives only the evidence relevant to its rules.
+`AuthorityFacts` is now an adapter-result composition of smaller values, rather
+than a flat collection of unrelated flags. None of these types independently
+verifies GitHub or a human identity; that remains the trusted adapter's job.
+
+`LifecycleService` coordinates locking, trusted evidence and local lease/job
+queries, actor-bound replay, aggregate invocation, receipts and the transaction.
+The JDBC adapter persists the returned state/version/approval and appends audit
+history atomically. Clearing an approval pin retains the prior approval in the
+audit record. `TransitionPolicy` remains a read-only table-query facade; the
+individual aggregate transition tables own its rules. The shared repository port
+preserves the existing single-transaction contract; this refactor does not split
+repositories or introduce asynchronous domain events. Attempt lease allocation
+and heartbeat behavior remain #9 rather than introducing a second lease model.
 
 ## Transition contract
 
@@ -141,5 +184,9 @@ expected SCM bindings, parent/child approval and workflow version mismatch,
 authenticated ownership/fences, expired lease holds and reconciled retry, explicit
 plan invalidation/reapproval, final approval/check requirements, command replay
 across restart, conflicting commands, cancellation races and audit rollback.
-Compiled-class architecture rules enforce a Java-only core and port direction.
+Pure entity tests additionally exercise immutable version progression, approval
+pinning/invalidation, cancellation after revocation, authenticated ownership,
+recovery evidence, exact PR bindings and final human gates without application
+or persistence infrastructure. Compiled-class architecture rules enforce a
+Java-only core, port direction and separation between aggregate packages.
 The full regression suite also retains webhook and bootstrap/restart coverage.

@@ -1,28 +1,32 @@
 package io.forgeflow.controlplane.lifecycle.adapter.out.persistence;
 
 import io.forgeflow.controlplane.lifecycle.application.port.out.LifecycleRepository;
-import io.forgeflow.controlplane.lifecycle.domain.ApprovalIdentity;
-import io.forgeflow.controlplane.lifecycle.domain.AttemptIdentity;
 import io.forgeflow.controlplane.lifecycle.domain.AuthorityFacts;
 import io.forgeflow.controlplane.lifecycle.domain.EntityKind;
 import io.forgeflow.controlplane.lifecycle.domain.EntityRef;
 import io.forgeflow.controlplane.lifecycle.domain.EpicState;
-import io.forgeflow.controlplane.lifecycle.domain.ExecutionIdentity;
 import io.forgeflow.controlplane.lifecycle.domain.JobState;
+import io.forgeflow.controlplane.lifecycle.domain.LifecycleEntity;
 import io.forgeflow.controlplane.lifecycle.domain.LifecycleException;
 import io.forgeflow.controlplane.lifecycle.domain.LifecycleState;
-import io.forgeflow.controlplane.lifecycle.domain.MergeTarget;
+import io.forgeflow.controlplane.lifecycle.domain.ParentContext;
 import io.forgeflow.controlplane.lifecycle.domain.RecordedTransition;
-import io.forgeflow.controlplane.lifecycle.domain.StateSnapshot;
 import io.forgeflow.controlplane.lifecycle.domain.StoryState;
 import io.forgeflow.controlplane.lifecycle.domain.TransitionCommand;
 import io.forgeflow.controlplane.lifecycle.domain.TransitionReceipt;
+import io.forgeflow.controlplane.lifecycle.domain.approval.ApprovalIdentity;
+import io.forgeflow.controlplane.lifecycle.domain.epic.Epic;
+import io.forgeflow.controlplane.lifecycle.domain.job.AttemptIdentity;
+import io.forgeflow.controlplane.lifecycle.domain.job.ExecutionIdentity;
+import io.forgeflow.controlplane.lifecycle.domain.job.Job;
+import io.forgeflow.controlplane.lifecycle.domain.story.MergeTarget;
+import io.forgeflow.controlplane.lifecycle.domain.story.Story;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
 import org.springframework.dao.DataAccessException;
@@ -35,7 +39,7 @@ public final class JdbcLifecycleRepository implements LifecycleRepository {
     public JdbcLifecycleRepository(JdbcTemplate jdbc) { this.jdbc = jdbc; }
 
     @Override
-    public StateSnapshot lock(EntityRef entity) {
+    public LifecycleEntity lock(EntityRef entity) {
         return access(() -> {
             // Coarse root-to-leaf locks serialize transitions within an epic, including completion.
             if (entity.kind() == EntityKind.JOB) {
@@ -80,7 +84,12 @@ public final class JdbcLifecycleRepository implements LifecycleRepository {
                             + "and not exists(select 1 from story where epic_id=? and state<>'MERGED')", Boolean.class, entity.id(), entity.id()));
                 }
             }
-            return new StateSnapshot(entity, state, number(row,"state_version").longValue(), approval, execution, target, allMerged, parentActive, parentApproval);
+            long version = number(row, "state_version").longValue();
+            return switch (state) {
+                case JobState job -> new Job(entity, job, version, approval, execution, new ParentContext(parentActive, parentApproval));
+                case StoryState story -> new Story(entity, story, version, approval, target, new ParentContext(parentActive, parentApproval));
+                case EpicState epic -> new Epic(entity, epic, version, approval, allMerged);
+            };
         });
     }
 
@@ -115,39 +124,36 @@ public final class JdbcLifecycleRepository implements LifecycleRepository {
     }
 
     @Override
-    public void save(StateSnapshot before, TransitionCommand command, AuthorityFacts facts, TransitionReceipt receipt, String digest, Instant now) {
+    public void save(LifecycleEntity before, LifecycleEntity after, TransitionCommand command, AuthorityFacts facts, TransitionReceipt receipt, String digest, Instant now) {
         access(() -> {
             String table = table(command.entity().kind());
             int changed;
-            boolean stopping = command.nextState() == JobState.CANCELLED || command.nextState() == StoryState.CANCELLED
-                    || command.nextState() == EpicState.CANCELLED || command.nextState() == StoryState.DRAFT || command.nextState() == EpicState.DRAFT;
-            ApprovalIdentity pin = stopping ? before.approval() : command.approval();
+            ApprovalIdentity pin = after.approval();
             if (command.entity().kind() == EntityKind.JOB) {
-                changed = jdbc.update("update job set state=?,state_version=state_version+1 where id=? and state_version=?",
-                        command.nextState().name(),command.entity().id(),before.version());
+                changed = jdbc.update("update job set state=?,state_version=? where id=? and state_version=?",
+                        after.state().name(),after.version(),command.entity().id(),before.version());
                 if (command.nextState() == JobState.SUCCEEDED || command.nextState() == JobState.FAILED
                         || command.nextState() == JobState.CANCELLED || (before.state() == JobState.RECONCILING && command.nextState() == JobState.PENDING)) {
                     jdbc.update("update job_attempt set finished_at=? where job_id=? and finished_at is null",Timestamp.from(now),command.entity().id());
                 }
             } else {
-                boolean invalidated = command.nextState() == StoryState.DRAFT || command.nextState() == EpicState.DRAFT;
-                String identity = invalidated || pin == null ? null : mapper.writeValueAsString(pin);
+                String identity = pin == null ? null : mapper.writeValueAsString(pin);
                 if (command.nextState() == StoryState.MERGED) {
-                    changed = jdbc.update("update story set state='MERGED',state_version=state_version+1,approved_identity=cast(? as jsonb),merged_commit_sha=? "
-                            + "where id=? and state_version=?",identity,facts.pullRequest().mergeCommitSha(),command.entity().id(),before.version());
+                    changed = jdbc.update("update story set state='MERGED',state_version=?,approved_identity=cast(? as jsonb),merged_commit_sha=? "
+                            + "where id=? and state_version=?",after.version(),identity,facts.delivery().pullRequest().mergeCommitSha(),command.entity().id(),before.version());
                 } else {
-                    changed = jdbc.update("update " + table + " set state=?,state_version=state_version+1,approved_identity=cast(? as jsonb) where id=? and state_version=?",
-                            command.nextState().name(),identity,command.entity().id(),before.version());
+                    changed = jdbc.update("update " + table + " set state=?,state_version=?,approved_identity=cast(? as jsonb) where id=? and state_version=?",
+                            after.state().name(),after.version(),identity,command.entity().id(),before.version());
                 }
             }
             if (changed != 1) throw new LifecycleException(LifecycleException.Kind.STALE_STATE);
             var identity = new LinkedHashMap<String,Object>();
-            identity.put("approval",pin); identity.put("execution",before.execution()); identity.put("attempt",command.attempt());
-            identity.put("finalHumanApprovalId",facts.finalHumanApprovalId());
-            if (facts.pullRequest() != null) identity.put("pullRequest",facts.pullRequest());
+            identity.put("approval",pin != null ? pin : before.approval()); identity.put("execution",before instanceof Job job ? job.execution() : null); identity.put("attempt",command.attempt());
+            identity.put("finalHumanApprovalId",facts.completion().finalHumanApprovalId());
+            if (facts.delivery().pullRequest() != null) identity.put("pullRequest",facts.delivery().pullRequest());
             jdbc.update("insert into lifecycle_transition(command_id,request_sha256,entity_kind,entity_id,from_state,to_state,resulting_version,actor_id,identity,occurred_at) "
                     + "values (?,?,?,?,?,?,?,?,cast(? as jsonb),?)",command.commandId(),digest,command.entity().kind().name(),command.entity().id(),
-                    before.state().name(),command.nextState().name(),receipt.version(),facts.actorId(),mapper.writeValueAsString(identity),Timestamp.from(now));
+                    before.state().name(),command.nextState().name(),receipt.version(),facts.actor().actorId(),mapper.writeValueAsString(identity),Timestamp.from(now));
             return null;
         });
     }

@@ -1,4 +1,4 @@
-package io.forgeflow.controlplane.lifecycle.domain;
+package io.forgeflow.controlplane.lifecycle.domain.story;
 
 public record MergeTarget(long repositoryId, int pullRequestNumber, String baseBranch, String headSha) {
     public boolean complete() {

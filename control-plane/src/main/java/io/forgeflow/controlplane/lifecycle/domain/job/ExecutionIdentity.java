@@ -1,6 +1,9 @@
-package io.forgeflow.controlplane.lifecycle.domain;
+package io.forgeflow.controlplane.lifecycle.domain.job;
 
+import io.forgeflow.controlplane.lifecycle.domain.LifecycleException;
+import io.forgeflow.controlplane.lifecycle.domain.approval.ApprovalIdentity;
 import java.util.UUID;
+
 public record ExecutionIdentity(UUID runId, ApprovalIdentity approval, String workflowKey, int workflowVersion,
                                 String processDefinitionId, String activityKey, int activityVersion) {
     public ExecutionIdentity {
