@@ -4,3 +4,5 @@ Describe what ForgeFlow should do, its constraints and acceptance criteria here.
 
 - [Roadmap](roadmap.md)
 - [Foundation epic #1](https://github.com/skizzay/forgeflow/issues/1) — first epic supporting milestone 1.
+
+- [Reviewable delivery slices](delivery-slices.md) — issue boundaries, PR scope and integration gates.
