@@ -9,15 +9,15 @@ Dependencies: #7/#32 integrated into `epic/1-foundation`; #18 research accepted.
 
 A framework-free lifecycle core with immutable job/story/epic entities, value
 objects, focused approval/reconciliation domain services, per-aggregate transition
-tables and an input port. Typed aggregate roots replace the generic state snapshot;
-composed evidence values replace the flat authority flags. The application service
+tables and an input port. Typed aggregate roots own lifecycle behavior;
+composed evidence values express trusted observations. The application service
 coordinates transactions/replay/evidence and delegates business rules to entities. JDBC persistence records guarded state/version and
 audit receipts atomically, with pinned approval/execution/attempt identity and
 idempotent command replay. Trusted authorization/reconciliation is an output port
 with a deny-unverified default. No HTTP, dispatch, approval issuance or merge API
 is added. See the [state tables and trust boundaries](../architecture/lifecycle-states.md).
 
-V3 is additive; V1/V2 are unchanged. Policy tests cover all same-family state
+The initial V1 schema defines the current lifecycle tables and columns. Policy tests cover all same-family state
 pairs. PostgreSQL tests exercise concurrency, restart, audit rollback, approval
 changes and exact GitHub evidence bindings. Real identity/SCM integrations remain
 their existing stories and must supply verified facts before guarded transitions
@@ -25,10 +25,9 @@ can operate in production.
 
 ## Review and integration
 
-This story branch originated from `epic/1-foundation`. It was updated with the
-integrated bootstrap and the approved main documentation/webhook baseline. #8
-is not a dependency of #14; importing approved main into this story does not
-claim #8 has merged into the epic branch or unlock #15.
+#7/#32 are integrated into `epic/1-foundation`; #18 research is accepted.
+#8 is not a dependency of #14. Mainline integration does not satisfy the
+requirement for prerequisite implementation to merge into the epic branch.
 
 The user explicitly requested story PRs into main as a review-target exception.
 PR #24 remains ready for human review after checks; do not merge, retarget

@@ -32,7 +32,7 @@ public final class JdbcWebhookInbox implements WebhookInboxRepository {
     @Override
     public Optional<DeliveryIdentity> claimNext() {
         return access(() -> jdbc.query("select delivery_id,event_type,payload_sha256 from webhook_inbox "
-                + "where state='RECEIVED' and payload_sha256 is not null "
+                + "where state='RECEIVED' "
                 + "order by received_at,delivery_id limit 1 for update skip locked",
                 (row, index) -> new DeliveryIdentity(row.getObject("delivery_id", UUID.class), row.getString("event_type"), row.getString("payload_sha256"))).stream().findFirst());
     }

@@ -78,9 +78,7 @@ Architecture tests inspect compiled production classes with ArchUnit and enforce
 Framework-free use-case tests exercise authentication-before-storage, replay
 conflicts, duplicate acknowledgement, required routing identity and classification.
 The existing PostgreSQL/HTTP suite continues to verify concrete adapters,
-transactions, concurrent delivery, rollback, restart and scheduling. No schema,
-endpoint, configuration-key or acknowledgement contract changes are introduced
-by this refactor. This is package-level separation inside the current Maven
+transactions, concurrent delivery, rollback, restart and scheduling. The boundaries are packages inside the current Maven
 module; an additional deployment or Maven module is not needed for these boundaries.
 
 Apply the same dependency direction to future worker and orchestration features.

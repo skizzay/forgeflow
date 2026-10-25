@@ -1,10 +1,7 @@
 # Separate job, story and epic lifecycle
 
 Implements [#14](https://github.com/skizzay/forgeflow/issues/14), parent
-[Foundation #1](https://github.com/skizzay/forgeflow/issues/1), reviewed in
-[PR #24](https://github.com/skizzay/forgeflow/pull/24). Bootstrap #7 and schema
-refinement #32 are integrated into the epic branch. This feature consumes the
-accepted #18 research findings; it does not import experimental source.
+[Foundation #1](https://github.com/skizzay/forgeflow/issues/1).
 
 ## Boundaries
 
@@ -14,7 +11,7 @@ the transaction adapter and composes a default deny-unverified authority adapter
 There is no HTTP endpoint, scheduler, GitHub client or Docker action in this story.
 
 Flowable owns process/activity progression. The domain entities own guarded
-ForgeFlow domain transitions; it does not sequence or complete BPMN activities.
+ForgeFlow domain transitions; they do not sequence or complete BPMN activities.
 GitHub PR/check state is independent authoritative evidence. DAG eligibility is
 an independently verified prerequisite, not a workflow-generated decision. Job
 SUCCEEDED changes only the job; it cannot imply story MERGED, epic COMPLETED,
@@ -22,8 +19,7 @@ BPMN completion, a mainline merge or release.
 
 ## Domain composition
 
-The model is organized by concept within the existing lifecycle hexagon, rather
-than using project-wide entities/services folders. These are in-process domain
+The model is organized by concept within the lifecycle hexagon. These are in-process domain
 boundaries, not separate deployments or database schemas.
 
 | Package | Building blocks | Responsibility |
@@ -44,23 +40,21 @@ construction is also used for persistence rehydration; it does not confer
 permission to execute or persist a transition. The common sealed state families
 remain together because this Maven module uses Java's unnamed module.
 
-The generic `StateSnapshot` has been removed. The repository loads a typed root
-with parent/completion observations under the existing locks. A child does not
+The repository loads a typed root with parent/completion observations under
+root-to-leaf locks. A child does not
 embed or mutate its parent entity. `ApprovalPolicy` composes cross-root identity
 rules; `ReconciliationPolicy` combines recovery authority, quiescence and lease
 observations. Each entity receives only the evidence relevant to its rules.
-`AuthorityFacts` is now an adapter-result composition of smaller values, rather
-than a flat collection of unrelated flags. None of these types independently
+`AuthorityFacts` is an adapter-result composition of these evidence values. None of these types independently
 verifies GitHub or a human identity; that remains the trusted adapter's job.
 
 `LifecycleService` coordinates locking, trusted evidence and local lease/job
 queries, actor-bound replay, aggregate invocation, receipts and the transaction.
 The JDBC adapter persists the returned state/version/approval and appends audit
 history atomically. Clearing an approval pin retains the prior approval in the
-audit record. `TransitionPolicy` remains a read-only table-query facade; the
+audit record. `TransitionPolicy` is a read-only table-query facade; the
 individual aggregate transition tables own its rules. The shared repository port
-preserves the existing single-transaction contract; this refactor does not split
-repositories or introduce asynchronous domain events. Attempt lease allocation
+uses one transaction for state and audit persistence. Attempt lease allocation
 and heartbeat behavior remain #9 rather than introducing a second lease model.
 
 ## Transition contract
@@ -103,7 +97,7 @@ attempt. Allocating/incrementing fences, claiming jobs and heartbeats remain #9.
 | PR_OPEN | MERGED | Verified GitHub merge for the exact repository ID, PR number, epic base branch and head SHA, with a merge commit SHA |
 | DRAFT / READY / ACTIVE / PR_OPEN | CANCELLED | Independently authorized stop |
 
-MERGED and CANCELLED are terminal. The existing PR number and a new expected head
+MERGED and CANCELLED are terminal. The existing PR number and expected head
 SHA bind observations to the story; the expected base comes from its epic branch.
 The scoped publisher/reconciler must populate/verify this binding (#11/#15).
 An open PR or a completed job is insufficient merge evidence. State cancellation
@@ -154,10 +148,9 @@ calling this port. No dispatch or merge is enabled by the fixture tests.
 
 ## Persistence, transactions and recovery
 
-V3 adds state versions, nullable story/epic approval pins, the story's expected PR
-head, and `lifecycle_transition` audit records. V1/V2 and their checksums remain
-unchanged. Existing rows retain their states/version zero; missing approval pins
-remain unverified rather than being backfilled as approvals.
+The initial V1 schema defines state versions, story/epic approval pins, the
+story's expected PR head and `lifecycle_transition` audit records. Approval pins
+are nullable until the corresponding guarded approval/readiness transition.
 
 A transaction locks root-to-leaf (epic, story, job), checks expected state/version,
 authorizes, writes state/identity and appends its audit receipt atomically. CAS

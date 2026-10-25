@@ -1,9 +1,8 @@
 # Configure the local GitHub webhook inbox
 
 Tracks [#8](https://github.com/skizzay/forgeflow/issues/8). First follow the
-[local control-plane guide](local-control-plane.md) to build and migrate. Run the
-independent migration executable again to apply V2 to an existing V1 database;
-there is no V1 checksum rewrite in this story.
+[local control-plane guide](local-control-plane.md) to build and migrate. The initial
+V1 schema includes the webhook inbox and event classification tables.
 
 Webhooks are disabled by default. To enable them, supply these environment
 variables to the runtime container from your environment or secret manager:

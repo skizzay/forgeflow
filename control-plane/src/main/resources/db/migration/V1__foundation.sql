@@ -10,6 +10,8 @@ create table epic (
     repository_id uuid not null references repository(id),
     issue_number integer not null check (issue_number > 0),
     state text not null default 'DRAFT' check (state in ('DRAFT','APPROVED','ACTIVE','COMPLETED','CANCELLED')),
+    state_version bigint not null default 0 check (state_version >= 0),
+    approved_identity jsonb,
     branch_name text,
     unique (repository_id, issue_number), unique (id, repository_id)
 );
@@ -19,6 +21,9 @@ create table story (
     repository_id uuid not null references repository(id),
     issue_number integer not null check (issue_number > 0),
     state text not null default 'DRAFT' check (state in ('DRAFT','READY','ACTIVE','PR_OPEN','MERGED','CANCELLED')),
+    state_version bigint not null default 0 check (state_version >= 0),
+    approved_identity jsonb,
+    expected_pr_head_sha text check (expected_pr_head_sha ~ '^[0-9a-f]{40}([0-9a-f]{24})?$'),
     branch_name text,
     pull_request_number integer check (pull_request_number > 0),
     merged_commit_sha text,
@@ -38,8 +43,10 @@ create table webhook_inbox (
     repository_id uuid references repository(id),
     received_at timestamptz not null default now(),
     processed_at timestamptz,
-    state text not null default 'RECEIVED' check (state in ('RECEIVED','PROCESSED','FAILED'))
-    -- Payload storage/retention and processing policy belong to #8; no secrets/raw logs.
+    state text not null default 'RECEIVED' check (state in ('RECEIVED','PROCESSED','FAILED')),
+    payload_sha256 text not null check (payload_sha256 ~ '^[0-9a-f]{64}$'),
+    payload_bytes integer not null check (payload_bytes >= 0),
+    metadata jsonb not null default '{}'
 );
 create table workflow_definition (
     workflow_key text not null,
@@ -77,6 +84,7 @@ create table job (
     activity_key text not null,
     activity_version integer not null,
     state text not null default 'PENDING' check (state in ('PENDING','RUNNING','RECONCILING','SUCCEEDED','FAILED','CANCELLED')),
+    state_version bigint not null default 0 check (state_version >= 0),
     idempotency_key text not null unique,
     foreign key (activity_key, activity_version) references activity_definition(activity_key, registry_version)
 );
@@ -92,3 +100,23 @@ create table job_attempt (
 );
 create unique index one_live_attempt_per_job on job_attempt(job_id) where finished_at is null;
 create index inbox_unprocessed on webhook_inbox(received_at) where processed_at is null;
+
+create table webhook_event (
+    delivery_id uuid primary key references webhook_inbox(delivery_id),
+    event_kind text not null check (event_kind in ('PING','ISSUE','PULL_REQUEST','UNSUPPORTED')),
+    published_at timestamptz not null default now()
+);
+
+create table lifecycle_transition (
+    command_id uuid primary key,
+    request_sha256 text not null check (request_sha256 ~ '^[0-9a-f]{64}$'),
+    entity_kind text not null check (entity_kind in ('JOB','STORY','EPIC')),
+    entity_id uuid not null,
+    from_state text not null,
+    to_state text not null,
+    resulting_version bigint not null check (resulting_version > 0),
+    actor_id text not null,
+    identity jsonb not null,
+    occurred_at timestamptz not null,
+    unique (entity_kind,entity_id,resulting_version)
+);
