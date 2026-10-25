@@ -69,45 +69,28 @@ No job update implicitly marks a story merged. #14 owns guarded domain transitio
 #9/#15 own lease/fencing/recovery policy, and #8 owns verified inbox ingestion.
 Schema states are a constrained initial vocabulary, not those completed behaviors.
 
-## Migration and upgrade boundary
+## Schema initialization
+
+ForgeFlow is developing its initial release. One V1 migration defines the current
+domain schema, including verified webhook identity and guarded lifecycle state.
+There is no supported upgrade path between development revisions. Initialize a
+fresh disposable development database after changing V1; preserve any needed data
+before recreating it. The application does not repair history or delete data.
 
 Runtime uses Flowable schema-update `false` and Flyway validation only. Missing or
-incompatible tables/checksums stop startup. The separate `-migrate.jar` release executable runs
-Flyway first, then Flowable schema maintenance and exits. It uses no Spring
-application context, HTTP server or workflow registration. The service entry point
-has no migration profile or profile-dependent shutdown logic. Use a separate migration identity with DDL
-privileges. Runtime needs schema USAGE and table DML/sequence privileges, not DDL.
-No Flyway clean, baseline-on-migrate, process auto-migration, engine REST routes,
-arbitrary BPMN upload or async executor is enabled.
+incompatible tables/checksums stop startup. The separate `-migrate.jar` executable
+runs Flyway first, then Flowable schema maintenance and exits. It uses no Spring
+application context, HTTP server or workflow registration. Run it before starting
+runtime, using a migration identity with DDL privileges. Runtime needs schema
+USAGE and table DML/sequence privileges, not DDL. Initialization must be serialized
+across the entire Flyway-plus-engine command; those steps are not one transaction.
+No automatic clean, baseline, repair or application-startup DDL is enabled.
 
 The development Compose database uses a disposable local administrator. Do not
 reuse that identity/password for deployment. Provision deployment roles separately;
 the integration test also verifies runtime startup with a DML-only identity.
-
-For an engine upgrade: stop dispatch and control-plane writers, save matching
-application artifact/configuration and a logical database backup, restore it into
-an isolated database, run the proposed migration command with the migration role,
-then start runtime without DDL and verify waiting instances and domain correlation.
-Review the exact upstream engine SQL and release notes before running migration
-against a deployed database. Engine automatic migration is confined to the explicit
-maintenance command, not application startup. ForgeFlow and engine migration steps
-are not one atomic upgrade: a later failure requires investigation/restore, not
-blind retry or an assumed downgrade. Roll back by restoring the matching backup
-and old artifact. No deployed upgrade or backup rehearsal is claimed by #7.
-
-## Deployment sequencing and blue-green constraints
-
-Run the migration executable once as a release job with DDL credentials before
-rolling out runtime containers with DML-only credentials. Complex data backfills
-must be separate resumable/batched jobs, not application-startup callbacks.
-Use expand/contract migrations: add backwards-compatible schema first, run old/new
-versions together only after explicit compatibility tests, switch traffic, then
-retire old instances before destructive contract changes. Flyway locking serializes
-schema-history changes; it is not a lock for the entire Flyway-plus-engine upgrade.
-The release system must serialize the whole migration job. Schema changes and
-engine upgrades are separate compatibility decisions: do not assume two Flowable
-versions can share an upgraded engine schema. This bootstrap does not provision a
-blue-green deployment or prove cross-version engine coexistence.
+Supported release upgrades, blue-green coexistence and data conversion are outside
+the initial-release contract.
 
 ## HTTP and deployment boundary
 
@@ -125,15 +108,3 @@ worker and other GitHub routes do not exist yet.
 The local Docker command binds inside its container and publishes only host loopback.
 No external identity service, tunnel or Docker host socket is configured. The
 execution plane remains a separate Java controller and isolated job containers.
-
-## Connection-schema refinement (#32)
-
-[Issue #32](https://github.com/skizzay/forgeflow/issues/32) removes the bootstrap
-SQL schema placeholders in favor of JDBC `currentSchema`. The original V1 file is
-changed before any supported deployment baseline is established. Existing databases
-initialized by the earlier bootstrap revision retain its old Flyway checksum and
-will fail validation; there is no automatic repair or data deletion. Recreate only
-disposable development databases, or retain the database and perform an explicitly
-reviewed migration-history reconciliation after backup. Do not apply this as an
-unreviewed upgrade to a populated deployment. Future deployed versioned migrations
-must remain immutable.

@@ -2,15 +2,15 @@
 
 Issue: [#8](https://github.com/skizzay/forgeflow/issues/8).
 Parent: [Foundation #1](https://github.com/skizzay/forgeflow/issues/1).
-Status: implementation under review in [PR #23](https://github.com/skizzay/forgeflow/pull/23).
+Status: implementation merged into main via [PR #23](https://github.com/skizzay/forgeflow/pull/23).
 Dependencies: #7 and #32 integrated into `epic/1-foundation` via #31/#34.
 
 ## Delivered implementation
 
 Opt-in, bounded WebFlux endpoint with raw-body HMAC verification and metadata-only
 transactional PostgreSQL inbox. Duplicate acknowledgement, changed-identity
-rejection, and independent idempotent scheduled event classification. V2 preserves
-legacy inbox rows without treating them as verified. No dispatch, App API calls,
+rejection, and independent idempotent scheduled event classification. The initial V1 schema requires
+complete payload identity on every inbox row. No dispatch, App API calls,
 PEM access, plan approval or merge effects.
 
 See [architecture](../architecture/webhook-inbox.md) and
@@ -33,12 +33,9 @@ Verification results and implementation tradeoffs are recorded in PR #23.
 
 ## Verification results
 
-Maven verify passed all 28 tests (18 PostgreSQL integration tests, four
-configuration tests, five framework-free use-case tests and one ArchUnit
-dependency-rule test), with zero failures/errors/skips. The webhook-specific suite
-contains eight integration scenarios; bootstrap adds a V1-to-V2 legacy-row upgrade
-check. All 52 local Markdown links and explicit-import/POM checks pass;
-`git diff --check` passes. Validation uses synthetic local deliveries, not a live
+The current regression suite passes all 52 tests, including eight webhook
+integration scenarios and initial-schema payload identity constraints. All 55
+local Markdown links and `git diff --check` pass. Validation uses synthetic local deliveries, not a live
 GitHub App, and commit-before-response/context-restart injection rather than an
 OS process-kill experiment.
 
@@ -49,4 +46,4 @@ application/domain core. SQL, transactions, HMAC, JSON, HTTP and scheduling are
 adapters assembled by Spring configuration. See the
 [structure and dependency rules](../architecture/hexagonal-control-plane.md).
 Core policy tests and compiled-class architecture rules supplement the existing
-PostgreSQL/HTTP suite; external contracts and migration SQL are unchanged.
+PostgreSQL/HTTP suite; the initial V1 schema includes inbox and classification storage.

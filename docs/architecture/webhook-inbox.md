@@ -34,7 +34,7 @@ actions and authenticated ingress never grant human plan or merge approval.
 
 ## Persistence and acknowledgements
 
-V2 extends the existing inbox without changing V1 or its checksum. It retains:
+The initial V1 schema defines the inbox and event classification tables. The inbox stores:
 
 - Delivery UUID, event type, receipt/processing timestamps and processing state.
 - Exact-body SHA-256 and byte count, not the raw body or signature.
@@ -75,8 +75,9 @@ GitHub through the scoped App integration in #11/#13/#15 rather than retaining r
 webhook data. No complete webhook replay or source archive can be reconstructed
 from this minimal metadata. Retention/purge automation remains operations scope.
 
-Legacy V1 rows lack verified hashes; V2 preserves them, but the processor excludes
-them. They cannot be upgraded into authenticated events by assumption.
+Every inbox row requires a payload hash and byte count. HMAC verification occurs
+in the ingress use case before insertion; database constraints alone are not
+proof of authentication.
 
 ## Verification
 
@@ -85,7 +86,8 @@ malformed/wrong-secret signatures, metadata filtering, simultaneous duplicates,
 changed replay identity, commit-before-response replay, pending delivery across
 restart, background scheduling, competing processors, failed persistence and a
 failure after event insertion that rolls back both publication and inbox update.
-A V1-to-V2 rehearsal preserves a legacy delivery without treating it as verified.
+Schema tests reject inbox rows without a payload hash or byte count and reject
+negative byte counts.
 Crash/acknowledgement loss is injected at the committed service boundary and
 context restart; these tests do not claim an OS process-kill experiment or live
 GitHub delivery. Existing bootstrap, shared rollback and schema-isolation checks

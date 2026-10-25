@@ -1,8 +1,8 @@
 # Run the local control-plane bootstrap
 
 Implements [#7](https://github.com/skizzay/forgeflow/issues/7). This starts a local
-control plane with a PostgreSQL database and health endpoint. Worker execution,
-approval, GitHub webhooks and PR publication are subsequent stories.
+control plane with PostgreSQL, a health endpoint and optional GitHub webhook
+ingress. Worker execution, approval and PR publication remain subsequent work.
 
 Requirements: Docker Engine and Compose v2. Commands run from the repository root.
 Java 21 and Maven are included in the build container; neither is required on the host.
@@ -48,7 +48,6 @@ jdbc:postgresql://db:5432/forgeflow?currentSchema=forgeflow
 Use `&currentSchema=forgeflow` when the URI already has other parameters. The
 runtime and migrator derive the domain schema from the same URI. Set optional
 `FORGEFLOW_ENGINE_SCHEMA` consistently for both commands (default `flowable`).
-The former `FORGEFLOW_DOMAIN_SCHEMA` / runtime `domain-schema` setting is removed.
 Schema names must be distinct dedicated lowercase identifiers of at most 63
 characters; existing schemas are not renamed when these settings change.
 Use a migration identity for the explicit maintenance command
@@ -59,10 +58,12 @@ files or logs. Local tests need CREATE DATABASE privileges only on a disposable
 PostgreSQL server; they create and remove uniquely named fixture databases.
 
 A failed runtime startup on an empty database is expected: run maintenance first.
-A checksum/registry mismatch needs investigation and a new migration/version; do
-not repair checksums or overwrite deployed definitions to bypass it.
+A checksum or registry mismatch stops startup and needs investigation. ForgeFlow
+is developing its initial release and maintains one V1 schema. Use a fresh,
+disposable development database when that schema changes; there is no supported
+upgrade path between development revisions. The application never repairs history
+or deletes data automatically. Preserve any data you need before recreating a database.
 
-If a disposable development database was initialized before #32, its V1 checksum
-will differ after this bootstrap SQL change. Recreate it only if its data is
-disposable; otherwise preserve it and review the reconciliation procedure in the
-persistence guide. The application never repairs history or deletes data automatically.
+The initial schema includes lifecycle versions, audit records and approval pins.
+The lifecycle feature has no public command endpoint yet; its default authority
+denies guarded transitions until trusted approval/identity/SCM integrations are installed.
