@@ -20,24 +20,25 @@ Epic acceptance verification, architecture review, final epic PR to main, human 
 ## Milestone 6 — Operations and portability
 Pause/resume/cancel, telemetry, AI and compute cost reporting, security hardening, cloud worker compatibility testing.
 
-## First sprint tasks
-1. Spring Boot skeleton and database migrations.
-2. GitHub App webhook receiver with signature verification and durable inbox.
-3. Job and worker API contract.
-4. Java polling worker with lease and heartbeat.
-5. Disposable Docker Codex execution image and safe credential handling.
-6. Test story -> branch -> PR end-to-end demonstration.
+## Current delivery plan
 
-Each task must specify dependencies, acceptance criteria, verification, and completion evidence.
+Bootstrap #7, verified inbox #8 and guarded lifecycle #14 have merged into main.
+Milestone 1 is incomplete. Implementation dependencies still require integration
+into the proper epic branch; mainline merges alone do not satisfy that gate.
 
-## Feasibility checkpoint — 2026-10-22
+Use the [reviewable delivery slices](delivery-slices.md) and linked GitHub child
+tickets for remaining work. Start with the single-worker protocol, then deliver
+manual approval/job creation, worker authentication and lease operations, isolated
+execution, scoped GitHub publication and bounded recovery as individual PRs.
+The final demo verifies those components; it must not absorb their implementation.
+Full DAG planning, additional providers, cloud workers and broad operations
+remain in their later phases. The provisional rename is a separate workstream.
 
-[Issue #18](https://github.com/skizzay/forgeflow/issues/18) is closed with an
-accepted bounded research result; see the [synthesis](../research/issue-18-results.md).
-PR #21 is retained as an unmerged experiment archive, not a production dependency.
-Next implementation is #7 (bootstrap), followed by its dependent foundation and
-worker contracts. #13 still owns scoped GitHub credential and provider operational
-validation; #11 owns the actual approved-issue-to-PR demonstration; #15 owns real
-GitHub reconciliation. Milestone 1 is not complete. No new generic Flowable POC
-is required; use the existing evidence while implementing and testing those stories.
-Research acceptance does not waive human epic approval or implementation merge gates.
+## Accepted feasibility evidence
+
+[Issue #18](https://github.com/skizzay/forgeflow/issues/18) records accepted bounded
+local feasibility. PR #21 is an unmerged experiment archive, not production code
+or a dependency. No repeat generic Flowable POC is required. Remaining Codex
+sign-in, image and scoped GitHub access checks are individually scoped under
+#13. Real publication and recovery remain under #11/#15.
+Research acceptance does not authorize dispatch, approve an epic or waive a merge gate.
