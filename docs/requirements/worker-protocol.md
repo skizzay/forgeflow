@@ -7,6 +7,47 @@ have no database/Flowable access. See [architecture](../architecture/overview.md
 [lifecycle guards](../architecture/lifecycle-states.md) and
 [recovery evidence](../research/issue-18-results.md).
 
+## Worker interaction
+
+The controller authenticates to the control plane and owns the Docker lifecycle.
+The job container receives its bounded activity input, not the controller's API
+credential or Docker socket. This diagram summarizes the proposed protocol;
+transaction, authority and replay rules below remain mandatory.
+
+```mermaid
+sequenceDiagram
+    participant W as Java controller
+    participant O as Control plane
+    participant D as PostgreSQL
+    participant J as Isolated job container
+    W->>O: Claim C1 with capabilities and bearer credential
+    O->>D: Check approval and eligibility then allocate attempt/fence/lease
+    D-->>O: Commit RUNNING and replay record atomically
+    O-->>W: Assignment with pinned identity and lease
+    W->>J: Launch assigned image and activity
+    loop While executing and before lease expiry
+        W->>O: Heartbeat with current attempt/fence/version
+        alt Still eligible and owned
+            O->>D: Commit bounded lease renewal
+            O-->>W: CONTINUE and lease expiry
+        else Cancellation or lost eligibility/ownership
+            O-->>W: STOP or rejection without renewal
+            W->>J: Stop and reap without launching a replacement
+        end
+    end
+    opt Execution finishes with a live owned lease
+        W->>O: Result R1 with bounded outcome/summary
+        O->>D: Commit terminal job state, closed attempt and receipt
+        O-->>W: Committed receipt
+        Note over W,O: Lost response: replay exact R1 for the historical receipt
+    end
+```
+
+An empty/ineligible claim returns 204 without launching anything. Cancellation
+and terminal result race under the same transaction rules; the diagram's result
+path is unavailable once cancellation, ownership loss or expiry wins. With no
+response, the controller stops before its last confirmed lease deadline.
+
 ## Transport and authority
 
 Use HTTPS with JSON (`application/json`) at `/api/worker/v1`; times are UTC RFC3339,
@@ -180,6 +221,28 @@ alone enters RECONCILING, verifies remote/local cleanup and authorizes a new
 attempt/fence. Flowable retries must not bypass that policy or create another
 container for an unresolved attempt. Production endpoints remain deny-by-default
 until their authentication and trusted authority adapters are implemented.
+
+## Expired-lease retry path
+
+Lease expiry stops execution permission. It does not grant permission to claim
+the same work again. The orchestrator owns the following recovery decisions;
+worker cleanup reports are observations, not sufficient proof by themselves.
+Reconciliation may also establish a terminal result; this diagram focuses on
+whether a new attempt is permitted.
+
+```mermaid
+flowchart TD
+    D[Last confirmed lease deadline approaches] --> W[Controller stops and reaps before expiry]
+    E[Lease expires] --> O[Orchestrator fences stale operations and enters RECONCILING]
+    W -. Cleanup observation .-> V
+    O --> V[Verify remote publication and local cleanup evidence]
+    V --> Q{External effects known quiescent?}
+    Q -->|No or unknown| H[Keep RECONCILING; no new attempt]
+    Q -->|Yes| A{Retry authorized with current approval and active parents?}
+    A -->|No| H
+    A -->|Yes| P[Return job to PENDING and close old attempt]
+    P --> C[Next eligible claim allocates a new attempt and higher fence]
+```
 
 ## Acceptance examples
 
