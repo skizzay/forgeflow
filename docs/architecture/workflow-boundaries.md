@@ -72,41 +72,78 @@ or arbitrary signal target in an external event.
 ```mermaid
 sequenceDiagram
     participant T as Ticket service
-    participant I as Webhook adapters and durable inbox
-    participant E as Event normalization and correlation
+    participant I as Verified ingress, inbox and correlation
     participant F as Flowable BPMN
     participant A as Activity handlers and outbound ports
     participant R as Repository service
     T->>I: New ticket webhook
     I->>I: Verify source and persist deduplicated delivery
     I-->>T: Acknowledge committed receipt
-    I->>E: Process pending delivery
-    E->>F: Start intake once for configured WorkItemRef
-    F->>A: Read work item and validate execution eligibility
+    I->>F: Start intake once for configured WorkItemRef
+    F->>A: Read work item and validate approval/eligibility
     A->>T: Query through ticket port
     T-->>A: Work-item details
     A-->>F: Details and independently verified approval facts
-    Note over F: BPMN chooses next step or durable wait
-    loop Later external events for the same work
-        alt Ticket updated or commented on
-            T->>I: Ticket webhook
-        else PR/MR review, comment, check, head update or closure
-            R->>I: Repository webhook
-        end
-        I->>I: Verify source and persist deduplicated delivery
-        I->>E: Process normalized delivery after acknowledgement
-        E->>F: Correlate observation to existing process
-        F->>A: Execute activity selected by BPMN or verify provider state
-        opt Repository state or action is required
-            A->>R: Query or publish through repository port
-            R-->>A: Exact normalized observation or publication binding
-        end
+    opt Authorized execution is eligible
+        F->>A: Dispatch coding and testing activity
+        Note over F,A: Worker claims activity and accepted result completes durable wait
         A-->>F: Verified activity outcome
-        Note over F: BPMN advances or waits for another event
+        F->>A: Publish tested PR/MR
+        A->>R: Publish through repository port
+        R-->>A: ChangeRequestRef and exact base/head
+        A-->>F: Persisted publication binding
+    end
+    Note over F: Wait for ticket or repository events
+    loop Independent events for the same process
+        alt Ticket update or comment
+            T->>I: Ticket webhook
+        else PR/MR review comment, review, check, head update or closure
+            R->>I: Repository webhook without a ticket callback
+        end
+        I->>I: Verify, persist, deduplicate and acknowledge delivery
+        I->>F: Resume existing process through correlated observation
+        opt Bound PR/MR needs review or closure handling
+            F->>A: Obtain current review/check/head and approval facts
+            A->>R: Query through repository port
+            R-->>A: Normalized current evidence
+            A-->>F: Verified facts for BPMN gateways
+            alt Open PR/MR with actionable comments and authorized within attempt cap
+                F->>A: Dispatch remediation and testing activity
+                A-->>F: Accepted outcome and verified test evidence
+                alt Tests pass
+                    F->>A: Publish tested commit and request re-review
+                    A->>R: Update PR/MR head through repository ports
+                    R-->>A: New head and publication binding
+                    A-->>F: Recorded publication outcome
+                    Note over F,R: Wait for fresh review/check webhooks and repeat this loop
+                else Tests fail or outcome is uncertain
+                    F->>A: Hold and escalate without publishing
+                end
+            else Open PR/MR with required review and checks passing for current head
+                Note over F: Wait for explicit human merge authorization
+                opt Authenticated human approves exact change-request binding
+                    A->>F: Verified approval from operator command
+                    F->>A: Revalidate guards and request merge
+                    A->>R: Merge exact approved base/head
+                    R-->>A: Remote result or unknown outcome
+                    A-->>F: Recorded observation or reconciliation hold
+                    Note over F,R: Await or reconcile verified merged state
+                end
+            else Change request is closed
+                F->>A: Record verified merge or handle closed-without-merge
+                A-->>F: Advance only if exact binding is verified merged
+            else Ambiguous, failing, stale or exhausted review budget
+                F->>A: Hold or escalate to human
+            end
+        end
     end
 ```
 
-This is the proposed event cycle, not an executable BPMN definition. The worker
+This is the proposed event cycle, not an executable BPMN definition. The PR/MR
+review-comment path, remediation, tested head publication, re-review and guarded
+merge are shown explicitly in this sequence. A merge reply alone is not proof of
+completion; verified merged state is required. Ticket-only events with no review
+binding remain in intake/approval handling rather than invoking review activities. The worker
 claim/heartbeat/result sequence is a zoom-in on one execution activity selected
 by that process, not the system's entry point. Accepted worker results and trusted
 operator commands also enter the correlated process through application handlers;
