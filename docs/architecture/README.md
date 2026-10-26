@@ -17,3 +17,5 @@ The intended stack is Java/Spring Boot with PostgreSQL and a separate Java worke
 - [Separate job, story and epic lifecycle](lifecycle-states.md) — guarded transitions, pinned identity, audit and recovery boundaries for #14.
 
 - [Worker protocol](../requirements/worker-protocol.md) — proposed API messages, lease ownership and cancellation/recovery diagrams; endpoints are not implemented yet.
+
+- [Flowable and provider boundaries](workflow-boundaries.md) — target orchestration ownership, separate ticket/repository ports and their relationship to worker execution; includes implementation-status distinctions.
