@@ -7,9 +7,33 @@ have no database/Flowable access. See [architecture](../architecture/overview.md
 [lifecycle guards](../architecture/lifecycle-states.md) and
 [recovery evidence](../research/issue-18-results.md).
 
+## Where Flowable and provider ports fit
+
+The proposed [workflow/provider boundaries](../architecture/workflow-boundaries.md)
+define the enclosing process: Flowable calls activity handlers, which use separate
+ticket and repository ports. GitHub is the first concrete adapter; those ports
+are not worker HTTP endpoints. A ticket and its repository can use different
+providers. The worker only executes the activity Flowable has dispatched.
+
+Flowable persists the process wait and dispatch intent; the worker API manages
+ownership of that external activity. An accepted outcome resumes the matching
+wait through the completion handler (#70), and BPMN selects the next step. Java
+must not sequence ticket lookup, coding, publication and review as another state
+machine. The current bootstrap only waits; this production path and the neutral
+provider ports are proposed, not implemented by this contract.
+
+Assignments carry independent `workItemRef` and `repositoryRef` correlation
+values resolved by the server. Their opaque provider IDs do not grant access or
+approval. Normalized provider observations return through control-plane adapters
+to waiting workflows. The controller never calls Flowable or chooses a provider
+from request-body data.
+
 ## Worker interaction
 
-The controller authenticates to the control plane and owns the Docker lifecycle.
+This sequence starts after a provider event has reached the
+[event-driven Flowable process](../architecture/workflow-boundaries.md#event-driven-process-entry-and-continuation)
+and BPMN has selected an execution activity. It is not the ticket-to-workflow
+entry sequence. The controller authenticates to the control plane and owns the Docker lifecycle.
 The job container receives its bounded activity input, not the controller's API
 credential or Docker socket. This diagram summarizes the proposed protocol;
 transaction, authority and replay rules below remain mandatory.
@@ -19,7 +43,9 @@ sequenceDiagram
     participant W as Java controller
     participant O as Control plane
     participant D as PostgreSQL
+    participant F as Flowable BPMN
     participant J as Isolated job container
+    F->>O: Dispatch registered activity and durably wait
     W->>O: Claim C1 with capabilities and bearer credential
     O->>D: Check approval and eligibility then allocate attempt/fence/lease
     D-->>O: Commit RUNNING and replay record atomically
@@ -37,7 +63,10 @@ sequenceDiagram
     end
     opt Execution finishes with a live owned lease
         W->>O: Result R1 with bounded outcome/summary
-        O->>D: Commit terminal job state, closed attempt and receipt
+        O->>D: Record terminal state, closed attempt and receipt in transaction
+        O->>F: Complete matching activity wait in the result transaction
+        O->>D: Commit domain and engine writes together
+        Note over F: BPMN selects the next activity
         O-->>W: Committed receipt
         Note over W,O: Lost response: replay exact R1 for the historical receipt
     end
@@ -133,11 +162,24 @@ The assignment contains exactly:
 
 - `jobId`, `attemptId`, `workerId`, `fencingToken`, `stateVersion` (RUNNING version).
 - `leaseExpiresAt`, `serverTime`, `heartbeatIntervalSeconds` (10 initially).
+- `workItemRef` and `repositoryRef`: each has `integrationId` (configured UUID)
+  and `externalId` (nonempty opaque string, at most 256 characters). Their
+  integrations are independent; do not assume a shared provider or account.
 - `approval`: `approvalId`, `planRevision`, `configurationSha256`.
 - `execution`: `runId`, `workflowKey`, `workflowVersion`, `processDefinitionId`,
   `activityKey`, `activityVersion`; its approval is the assignment's approval.
 - `activity`: `inputContractVersion`, `outputContractVersion`, `input` (the
   registered activity's validated, bounded JSON object), `platform`, `executionImage`.
+
+For example, this correlation fragment can refer to a ticket integration and a
+separate repository integration; provider types are resolved from configuration:
+
+```json
+{"workItemRef":{"integrationId":"20000000-0000-4000-8000-000000000001","externalId":"TEAM-42"},"repositoryRef":{"integrationId":"20000000-0000-4000-8000-000000000002","externalId":"group/service"}}
+```
+
+The server maps `execution.runId` to its Flowable process instance; the worker
+does not need a process-instance identifier or engine credentials.
 
 Definition/contract versions are positive 32-bit integers. Plan revision is an
 ASCII token of 1–128 characters. Workflow/activity/definition identifiers are
@@ -196,9 +238,12 @@ receipt even after the lease has expired; it grants no new execution rights.
 A new stale result returns 409 and cannot overwrite cancellation or a newer
 attempt. Identical outcome under a different command ID is not a replay.
 
-Only job state changes. Story merge requires verified GitHub evidence; workflow
-activity advancement (#70) and publication (#48/#49/#71) remain separate. The
-worker never chooses the next workflow step or grants approval.
+The result reports an activity outcome, not a story merge. The completion handler
+(#70) composes accepted job completion and the matching Flowable wait in one
+transaction; implementation of that handler is separate from this contract.
+BPMN routes subsequent publication/review activities through repository ports
+(#48/#49/#71). Story merge requires verified repository evidence, not a successful
+worker outcome. The worker neither sequences the workflow nor grants approval.
 
 ## Errors and ownership of retry
 
@@ -216,16 +261,16 @@ Errors contain exactly `commandId` (null if missing/malformed), `code`, `action`
 
 Do not blindly retry other 4xx responses. A controller retries transient transport
 failures with the same operation ID and bounded backoff (1, 2, then 5 seconds).
-It stops active work by lease expiry regardless of connectivity. The orchestrator
-alone enters RECONCILING, verifies remote/local cleanup and authorizes a new
-attempt/fence. Flowable retries must not bypass that policy or create another
-container for an unresolved attempt. Production endpoints remain deny-by-default
+It stops active work by lease expiry regardless of connectivity. The control plane
+records RECONCILING and verified remote/local cleanup facts; Flowable owns the
+guarded wait/retry path. Neither an engine retry nor a Java handler may dispatch
+another container while the prior attempt remains unresolved. Production endpoints remain deny-by-default
 until their authentication and trusted authority adapters are implemented.
 
 ## Expired-lease retry path
 
 Lease expiry stops execution permission. It does not grant permission to claim
-the same work again. The orchestrator owns the following recovery decisions;
+the same work again. Flowable routes recovery using verified Java policy facts;
 worker cleanup reports are observations, not sufficient proof by themselves.
 Reconciliation may also establish a terminal result; this diagram focuses on
 whether a new attempt is permitted.
@@ -240,7 +285,7 @@ flowchart TD
     Q -->|No or unknown| H[Keep RECONCILING; no new attempt]
     Q -->|Yes| A{Retry authorized with current approval and active parents?}
     A -->|No| H
-    A -->|Yes| P[Return job to PENDING and close old attempt]
+    A -->|Yes| P[Flowable retry path closes old attempt and returns job to PENDING]
     P --> C[Next eligible claim allocates a new attempt and higher fence]
 ```
 
