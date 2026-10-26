@@ -22,6 +22,9 @@ A new ticket first enters through a provider webhook, verified durable inbox and
 normalized event-to-process correlation. Flowable starts intake once and decides
 the next step. Later ticket updates, review comments and change-request closure
 resume that same correlated process; each event does not launch a new job.
+After PR/MR publication, repository review/check/head events independently drive
+bounded remediation or merge evaluation without another ticket event. Merge
+execution still requires verified checks and explicit human authorization.
 Worker outcomes and authenticated operator commands are additional process inputs.
 Ticket creation does not authorize coding; approval and evidence guards remain
 mandatory. See the [event-driven sequence](workflow-boundaries.md#event-driven-process-entry-and-continuation).

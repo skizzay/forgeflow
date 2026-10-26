@@ -31,6 +31,7 @@ adapter. Provider selection is trusted server configuration, not worker input.
 | Repository query | Read branch/head, change request and check observations | Exact normalized refs, commit identities and evidence, including unknown state |
 | Branch/commit publication | Publish or confirm the expected branch/commit | Bound branch and commit identity |
 | Change-request publication | Publish or confirm a request for the expected base/head | `ChangeRequestRef` and exact binding |
+| Change-request merge | Request merge only for the approved exact base/head under mandatory checks and human authority | Verified merged identity, or explicit failure/unknown outcome |
 
 These are small outbound ports required by specific activities, not a mandatory
 single interface covering every provider API. GitHub adapters implement the first
@@ -48,8 +49,11 @@ from an external ID or use display URLs as credentials or authority.
 
 ## Event-driven process entry and continuation
 
-A configured ticket service emits a new-ticket event first. Its inbound adapter
-verifies the source and persists a deduplicated delivery before acknowledgement.
+A configured ticket service emits the initial new-ticket event. After a change
+request is published, the repository service independently emits PR/MR, review,
+comment, check and head-update events; no ticket update is required to progress.
+Each provider's inbound adapter verifies its source and persists a deduplicated
+delivery before acknowledgement.
 Asynchronous processing normalizes the event and correlates it to a work item
 and process. It starts a configured intake process once for eligible new work,
 or resumes the existing process for later events. Flowable decides whether to
@@ -86,7 +90,7 @@ sequenceDiagram
     loop Later external events for the same work
         alt Ticket updated or commented on
             T->>I: Ticket webhook
-        else Review comment or change request closed
+        else PR/MR review, comment, check, head update or closure
             R->>I: Repository webhook
         end
         I->>I: Verify source and persist deduplicated delivery
@@ -112,8 +116,52 @@ they do not require a provider webhook.
 |---|---|
 | New ticket | Start one eligible intake process for the configured integration/work-item identity; validate approval before dispatch. |
 | Ticket update/comment | Resume that work item's process; inspect changed inputs/authorized approval, invalidate stale execution eligibility or keep waiting as appropriate. A comment/label alone is not approval. |
-| Change-request review comment | Use the stored repository/change-request binding to find the process; BPMN handles review/remediation with verified authority and bounded attempts. Not every comment triggers coding. |
+| Change-request review/comment | Resume the existing review wait through the stored repository/change-request binding. BPMN may dispatch authorized bounded remediation or escalate ambiguity. No ticket event is required. |
+| Check/review/head update | Re-evaluate eligibility for that exact head. Changed head invalidates stale checks/review/merge authorization; passing review alone does not authorize merging. |
 | Change request closed | Verify exact repository/base/head and merged status through the repository port. Closed without merge must not mark the story MERGED. |
+
+## Repository-driven review and merge
+
+Once a PR/MR is bound to the process, repository events are an independent
+catalyst. The configured repository integration plus `ChangeRequestRef` locates
+the process directly; correlation does not wait for a ticket-system callback.
+The following is a proposed later-milestone BPMN review loop, not implemented
+behavior or permission to merge in the first vertical slice.
+
+```mermaid
+flowchart TD
+    R[Repository emits review, comment, check, head or closure event] --> I[Verify and persist provider delivery]
+    I --> F[Correlate PR/MR binding and resume Flowable review wait]
+    F --> V[Read current review, checks, base, head and closure evidence]
+    V -->|Actionable changes and authorized within attempt cap| W[Dispatch remediation activity]
+    W --> T[Run and verify tests]
+    T -->|Pass| P[Publish tested head and request review through repository ports]
+    P --> Q[Wait for fresh repository observations]
+    Q -->|Next repository event| R
+    T -->|Fail or uncertain| H[Hold or escalate to human]
+    V -->|Required review and checks pass for exact head| A[Wait for explicit authorized human merge approval]
+    A -->|Revalidate approval, checks, base and head| M[Invoke guarded repository merge activity]
+    M -->|Observe or reconcile remote outcome| R
+    V -->|Ambiguous, failing, exhausted cap or unknown evidence| H
+    V -->|Change request closed| C{Verified merged with expected binding?}
+    C -->|Yes| D[Record verified merge and advance the process]
+    C -->|No| N[Handle closure without marking story merged]
+```
+
+Remediation uses the existing worker activity path and preserves its approval,
+lease and fencing guards. Default cap is two remediation attempts; publishing a
+new head must not reset the budget. Failed tests cannot enter the publish/merge
+path. Re-review/check events resume the wait again; they do not create new story
+processes. Deduplicate comments and observations across delivery/reconciliation
+so replay cannot consume another attempt or repeat a merge.
+
+A review may make a change eligible for merging, but does not grant merge
+authority. Human approval is a separate authenticated command bound to the exact
+repository/change-request/base/head; revalidate it and required evidence at the
+merge boundary. Unsupported provider checks/review/merge capabilities, changed
+heads and unknown outcomes hold the workflow. A merge request is not proof of a
+merge: record completion only from verified provider state. Existing epic and
+final epic-to-main human approval gates remain mandatory.
 
 Persist the process/work-item and publication bindings. Duplicate events must not
 start another process or repeat an accepted effect. Provider deliveries can arrive

@@ -18,4 +18,4 @@ The intended stack is Java/Spring Boot with PostgreSQL and a separate Java worke
 
 - [Worker protocol](../requirements/worker-protocol.md) — proposed API messages, lease ownership and cancellation/recovery diagrams; endpoints are not implemented yet.
 
-- [Flowable and provider boundaries](workflow-boundaries.md) — target orchestration ownership, separate ticket/repository ports and their relationship to worker execution; includes implementation-status distinctions.
+- [Flowable and provider boundaries](workflow-boundaries.md) — target event-driven orchestration, independent ticket/repository inputs, review/remediation/merge loop and worker boundaries; includes implementation-status distinctions.
