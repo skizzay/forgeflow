@@ -17,3 +17,29 @@ Documentation categories: [research](docs/research/README.md), [requirements](do
 Use hexagonal feature boundaries: keep domain and application code framework-free; expose use cases through inbound ports and persistence/provider/transaction needs through outbound ports. HTTP, scheduling, JDBC and serialization belong in adapters. Wire concrete implementations in configuration; adapters depend on core ports rather than one another. Preserve transaction semantics and architecture dependency tests when refactoring.
 
 Before the first release, evolve the single V1 domain schema directly; do not maintain upgrade paths between development revisions. Architecture and user guides describe the current design, not a history of refactors.
+
+## Documentation is part of done
+
+For every change, assess documentation impact before coding and recheck it against
+the final diff before marking the PR ready. This includes code/package structure,
+behavior, contracts, configuration, build/run/test commands and operational limits.
+
+- Update affected canonical requirements, architecture and consumer guides in the
+  same PR as the change. Update research/reproduction instructions when evidence
+  or experiments change. Do not defer necessary documentation to another agent.
+- Keep agent discovery current: update affected category READMEs and AGENTS.md
+  navigation when guides, entry points, package boundaries or file locations
+  change. A new agent must be able to follow links to the relevant guide without
+  scanning the repository. Keep detailed knowledge in one canonical guide.
+- Document the current structure and behavior. Distinguish proposed, implemented
+  and verified behavior; remove stale instructions. Update existing Mermaid
+  diagrams when their flow changes, and add one when it materially clarifies a
+  workflow or boundary. Preserve historical evidence in research, not as a
+  running refactor history in current guides.
+- Verify affected links, examples and commands as appropriate; parse changed
+  Mermaid diagrams where tooling is available. Report unexecuted commands or
+  unverified rendering explicitly. Keep sensitive data out of examples/evidence.
+- In the PR, name the documentation updated and its verification. If no update is
+  needed, state the specific reason after reviewing the relevant guides; a bare
+  “docs not needed” is insufficient. Missing necessary documentation means the
+  change is not complete and must not be marked ready for review.
