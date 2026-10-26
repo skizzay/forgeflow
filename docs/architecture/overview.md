@@ -17,6 +17,15 @@ independent ticket/repository integrations. See the
 implementation limits and a Mermaid interaction diagram.
 
 ## Workflow
+
+A new ticket first enters through a provider webhook, verified durable inbox and
+normalized event-to-process correlation. Flowable starts intake once and decides
+the next step. Later ticket updates, review comments and change-request closure
+resume that same correlated process; each event does not launch a new job.
+Worker outcomes and authenticated operator commands are additional process inputs.
+Ticket creation does not authorize coding; approval and evidence guards remain
+mandatory. See the [event-driven sequence](workflow-boundaries.md#event-driven-process-entry-and-continuation).
+
 Codex drafts an epic and child stories; human approves the plan. Validate structured dependencies and acceptance-criteria coverage, reject cycles, create epic branch from main. Eligible stories receive isolated branches from the latest epic head. A story's dependencies are satisfied only after their PRs merge into the epic branch. Codex implements and tests, opens PR targeting epic branch. Copilot reviews; actionable feedback may trigger bounded remediation cycles. Required checks and merge permissions gate story integration. Once all stories merge, integration and architecture reviews run, then human approves epic-to-main PR and release.
 
 ## Reliability and safeguards

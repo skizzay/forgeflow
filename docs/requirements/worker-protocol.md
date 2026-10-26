@@ -30,7 +30,10 @@ from request-body data.
 
 ## Worker interaction
 
-The controller authenticates to the control plane and owns the Docker lifecycle.
+This sequence starts after a provider event has reached the
+[event-driven Flowable process](../architecture/workflow-boundaries.md#event-driven-process-entry-and-continuation)
+and BPMN has selected an execution activity. It is not the ticket-to-workflow
+entry sequence. The controller authenticates to the control plane and owns the Docker lifecycle.
 The job container receives its bounded activity input, not the controller's API
 credential or Docker socket. This diagram summarizes the proposed protocol;
 transaction, authority and replay rules below remain mandatory.
