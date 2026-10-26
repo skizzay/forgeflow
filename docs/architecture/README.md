@@ -15,3 +15,5 @@ The intended stack is Java/Spring Boot with PostgreSQL and a separate Java worke
 - [Hexagonal control-plane structure](hexagonal-control-plane.md) — framework-free core, ports, adapters and enforced dependency rules.
 
 - [Separate job, story and epic lifecycle](lifecycle-states.md) — guarded transitions, pinned identity, audit and recovery boundaries for #14.
+
+- [Worker protocol](../requirements/worker-protocol.md) — proposed API messages, lease ownership and cancellation/recovery diagrams; endpoints are not implemented yet.
