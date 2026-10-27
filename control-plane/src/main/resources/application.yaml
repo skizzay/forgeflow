@@ -10,6 +10,10 @@ spring:
   main:
     banner-mode: "off"
 forgeflow:
+  worker:
+    enabled: ${FORGEFLOW_WORKER_ENABLED:false}
+    id: ${FORGEFLOW_WORKER_ID:}
+    subject: ${FORGEFLOW_WORKER_SUBJECT:}
   github:
     webhook:
       enabled: ${FORGEFLOW_GITHUB_WEBHOOK_ENABLED:false}

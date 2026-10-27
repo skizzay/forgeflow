@@ -7,6 +7,16 @@ have no database/Flowable access. See [architecture](../architecture/overview.md
 [lifecycle guards](../architecture/lifecycle-states.md) and
 [recovery evidence](../research/issue-18-results.md).
 
+## Authentication implementation status
+
+The #38 implementation adds an opt-in OAuth2 resource-server boundary only.
+It maps a validated external issuer/subject to a configured UUID on worker v1 routes;
+there are still no production claim/heartbeat/result endpoints. Body fields do
+not choose the principal. Future activity handlers must additionally enforce
+attempt ownership and lifecycle guards; authentication alone grants neither.
+See [local worker authentication](../user-guide/worker-authentication.md) for
+provider configuration, token renewal and verification limits.
+
 ## Where Flowable and provider ports fit
 
 The proposed [workflow/provider boundaries](../architecture/workflow-boundaries.md)
@@ -46,7 +56,7 @@ sequenceDiagram
     participant F as Flowable BPMN
     participant J as Isolated job container
     F->>O: Dispatch registered activity and durably wait
-    W->>O: Claim C1 with capabilities and bearer credential
+    W->>O: Claim C1 with capabilities and access token
     O->>D: Check approval and eligibility then allocate attempt/fence/lease
     D-->>O: Commit RUNNING and replay record atomically
     O-->>W: Assignment with pinned identity and lease
@@ -85,13 +95,20 @@ may be zero), and SHA-256 values are 64 lowercase hex characters. Reject unknown
 fields, invalid enums/identifiers and bodies over 64 KiB. Never log credentials,
 raw request bodies, source code or process output.
 
-Each request carries `Authorization: Bearer <configured-secret>`. Provision one
-high-entropy secret out of band, mapped server-side to one stable worker UUID.
-Compare secrets in constant time, use external secret configuration, and redact
-configuration output. Replacing the secret revokes the old credential without
-changing worker identity. No enrollment endpoint, identity platform or JWT claim
-from the worker is needed. TLS termination must preserve authentication headers
-only over a trusted protected hop. No credentials go in query strings.
+Each request carries `Authorization: Bearer <access-token>`. An external OAuth2
+provider issues short-lived RS256 JWT access tokens using client credentials.
+Spring Boot configures the JWT decoder from standard resource-server properties.
+Validate signature against trusted public keys, exact issuer, audience, expiry
+and not-before time. Map the configured issuer/subject to a stable worker UUID
+and require scope `forgeflow.worker`. No shared API secret, token issuance,
+directory integration or identity platform belongs in ForgeFlow. LDAP/AD may be
+federated behind the external provider. Use HTTPS and a protected TLS-termination
+hop; no credentials go in query strings or untrusted job containers.
+
+Authentication failures use standard OAuth2 responses (401 with Bearer challenge;
+403 for a mapped principal without worker scope), not command-error envelopes.
+Already issued JWTs may remain usable until expiry plus clock skew; client-secret
+rotation at the provider does not immediately revoke them.
 
 The principal comes from authentication, never JSON. It can operate only on its
 own attempt. A known foreign attempt returns 403 without exposing its state;
@@ -247,13 +264,13 @@ worker outcome. The worker neither sequences the workflow nor grants approval.
 
 ## Errors and ownership of retry
 
-Errors contain exactly `commandId` (null if missing/malformed), `code`, `action`
+Application command errors contain exactly `commandId` (null if missing/malformed), `code`, `action`
 (`RETRY_SAME_COMMAND`, `STOP`, `FIX_REQUEST`). No internal SQL/exception text.
 
 | HTTP | Codes | Action |
 |---|---|---|
 | 400 / 413 / 415 | INVALID_REQUEST / BODY_TOO_LARGE / UNSUPPORTED_MEDIA_TYPE | FIX_REQUEST |
-| 401 | UNAUTHENTICATED | STOP; operator fixes/renews credentials |
+| 401 | OAuth2 Bearer challenge (outside command envelope) | STOP; controller renews token or operator fixes configuration |
 | 403 / 404 | FORBIDDEN / NOT_FOUND | STOP |
 | 409 | COMMAND_CONFLICT / ATTEMPT_ACTIVE | FIX_REQUEST; do not start another execution |
 | 409 | STALE_FENCE / STALE_VERSION / LEASE_EXPIRED / ASSIGNMENT_INVALID / JOB_STOPPED | STOP |
@@ -264,8 +281,9 @@ failures with the same operation ID and bounded backoff (1, 2, then 5 seconds).
 It stops active work by lease expiry regardless of connectivity. The control plane
 records RECONCILING and verified remote/local cleanup facts; Flowable owns the
 guarded wait/retry path. Neither an engine retry nor a Java handler may dispatch
-another container while the prior attempt remains unresolved. Production endpoints remain deny-by-default
-until their authentication and trusted authority adapters are implemented.
+another container while the prior attempt remains unresolved. Worker authentication is disabled by default. No job operation is enabled by
+this authentication adapter; trusted activity authority/ownership handlers remain
+required before production endpoints can be implemented.
 
 ## Expired-lease retry path
 
