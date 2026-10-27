@@ -9,7 +9,7 @@ contract within this design, not the workflow definition or provider API.
 | Responsibility | Owner | Current status |
 |---|---|---|
 | Activity order, gateways, durable waits and business retry paths | Flowable BPMN | Embedded engine exists; packaged process only waits at `awaitImplementation`. Production story workflow is not implemented. |
-| Approval authority, attempt ownership, leases, fencing and verified evidence | Focused Java domain policies and activity handlers | Lifecycle guards exist; worker transport and production authority integrations do not. |
+| Approval authority, attempt ownership, leases, fencing and verified evidence | Focused Java domain policies and activity handlers | Lifecycle guards, OAuth2 worker authentication and single-pair manual human approval exist; worker operations and process dispatch remain unimplemented. |
 | Job/story/epic transition model | Java lifecycle domain | Implemented today; must not grow into a parallel workflow sequencer. Independent business invariants remain, while BPMN owns process routing. |
 | Event ingestion and process correlation | Inbound adapters plus durable inbox and Flowable entry handlers | GitHub inbox verification/classification exists; normalized process-start/resume integration is proposed. |
 | Ticket operations | Ticket ports and provider adapters | Proposed; no provider-neutral ticket port is implemented. |
