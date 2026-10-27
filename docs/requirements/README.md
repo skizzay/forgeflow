@@ -8,3 +8,5 @@ Describe what ForgeFlow should do, its constraints and acceptance criteria here.
 - [Single-worker protocol v1](worker-protocol.md) — proposed message and lease contract (#37), with implemented Boot-configured OAuth2 authentication boundary (#38).
 
 - [Manual plan approval contract](../architecture/manual-plan-approval.md) — implemented single-pair approval/invalidation boundary (#46), without dispatch.
+
+- [Approved execution contract](../architecture/approved-execution.md) — first slice #83 of #47; event wiring follows in #84.

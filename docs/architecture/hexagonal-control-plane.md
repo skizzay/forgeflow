@@ -122,3 +122,8 @@ elastic threads. `ManualPlan` belongs in `domain.approval`; JDBC evidence storag
 and OAuth2 wiring remain adapters/configuration. The private scoped authority
 does not replace the general deny-unverified lifecycle authority. See
 [manual approval](manual-plan-approval.md) for the transaction and current limits.
+
+The [execution hexagon](approved-execution.md) uses `StartApprovedExecution` and
+`QueueInitialActivity` input ports, framework-free application services and
+`ExecutionStore`/`StartWorkflow` output ports. It reuses lifecycle policies; JDBC
+and Flowable adapters remain independent and are wired by configuration.

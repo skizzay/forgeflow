@@ -1,6 +1,9 @@
 package io.forgeflow.controlplane;
 
 import javax.sql.DataSource;
+import java.util.Map;
+import io.forgeflow.controlplane.execution.adapter.in.flowable.ApprovedActivityDelegate;
+import org.springframework.beans.factory.ObjectProvider;
 import org.flowable.engine.ProcessEngine;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -17,9 +20,11 @@ public class EngineConfiguration {
 
     @Bean(destroyMethod = "close")
     ProcessEngine processEngine(DataSource dataSource, PlatformTransactionManager transactionManager,
-                                DatabaseSchemas schemas) {
+                                DatabaseSchemas schemas, ObjectProvider<ApprovedActivityDelegate> activity) {
         schemas.flyway(dataSource).validate();
         var configuration = schemas.engine(dataSource, transactionManager, false);
+        var delegate = activity.getIfAvailable();
+        if (delegate != null) configuration.setBeans(Map.of("enqueueApprovedActivity", delegate));
         var engine = configuration.buildProcessEngine();
         // Keep engine metadata checks in its own schema, but use qualified engine SQL
         // at runtime. Flowable otherwise calls Connection.setSchema on every command,

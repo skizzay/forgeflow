@@ -1,5 +1,6 @@
 package io.forgeflow.controlplane;
 
+import io.forgeflow.controlplane.execution.application.port.in.StartApprovedExecution;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -86,6 +87,7 @@ class BootstrapIntegrationTest {
         String definition;
         try (var context = start(true)) {
             var jdbc = context.getBean(JdbcTemplate.class);
+            assertThat(context.getBeansOfType(StartApprovedExecution.class)).isEmpty();
             assertThat(jdbc.queryForObject("select count(*) from flyway_schema_history where success and version is not null", Integer.class)).isEqualTo(1);
             assertThat(jdbc.queryForObject("select count(*) from information_schema.tables where table_schema='forgeflow' and table_name <> 'flyway_schema_history'", Integer.class)).isEqualTo(13);
             assertThat(jdbc.queryForObject("select count(*) from information_schema.tables where table_schema='flowable'", Integer.class)).isPositive();
@@ -188,7 +190,7 @@ class BootstrapIntegrationTest {
         try (var context = start(true)) {
             context.getBean(JdbcTemplate.class).update("update workflow_definition set content_sha256=?", "0".repeat(64));
         }
-        assertThatThrownBy(() -> start(false)).hasStackTraceContaining("Bootstrap registry incompatible");
+        assertThatThrownBy(() -> start(false)).hasStackTraceContaining("Workflow registry incompatible");
     }
 
     @Test

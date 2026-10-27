@@ -4,8 +4,9 @@ Implements [#46](https://github.com/skizzay/forgeflow/issues/46), under #11/#3.
 The opt-in command records human approval for one configured epic/story pair. It
 transitions only the epic DRAFT → APPROVED, or APPROVED → DRAFT on invalidation.
 The story stays DRAFT. No workflow instance, job, dispatch or merge is created.
-Future event-to-job handling (#47) must consume current approval evidence and use
-the existing guards for parent activation and story readiness; it is not implemented here.
+The [approved execution backend](approved-execution.md) consumes current evidence
+and uses the guards for parent activation/readiness. Event routing into that
+backend remains #84 under #47; the approval command itself never starts execution.
 
 ## Authentication and authority
 

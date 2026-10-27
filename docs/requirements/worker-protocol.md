@@ -29,8 +29,9 @@ Flowable persists the process wait and dispatch intent; the worker API manages
 ownership of that external activity. An accepted outcome resumes the matching
 wait through the completion handler (#70), and BPMN selects the next step. Java
 must not sequence ticket lookup, coding, publication and review as another state
-machine. The current bootstrap only waits; this production path and the neutral
-provider ports are proposed, not implemented by this contract.
+machine. Bootstrap only waits. The opt-in [approved execution backend](../architecture/approved-execution.md)
+implements an initial activity dispatch/wait through a trusted Java port;
+provider-event entry, completion and neutral provider ports remain pending.
 
 Assignments carry independent `workItemRef` and `repositoryRef` correlation
 values resolved by the server. Their opaque provider IDs do not grant access or

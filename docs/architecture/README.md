@@ -22,3 +22,5 @@ The intended stack is Java/Spring Boot with PostgreSQL and a separate Java worke
 - [Flowable and provider boundaries](workflow-boundaries.md) — target event-driven orchestration, independent ticket/repository inputs, review/remediation/merge loop and worker boundaries; includes implementation-status distinctions.
 
 - [Configured manual plan approval](manual-plan-approval.md) — human OAuth2 authority, immutable pins and transactional approval/invalidation (#46).
+
+- [Approved execution backend](approved-execution.md) — pinned run, BPMN initial dispatch/wait and atomic engine/domain writes (#83); inbox wiring remains #84.

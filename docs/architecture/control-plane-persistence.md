@@ -62,8 +62,10 @@ registry version, never overwrite an existing registered definition.
 
 The bootstrap has no run-start endpoint, scheduler or worker claim/completion API.
 The opt-in [manual approval command](manual-plan-approval.md) records one configured
-human approval through existing lifecycle guards; it starts no workflow. Its packaged process waits at a receive task and has no
-side effects. The restart test creates a clearly marked approval fixture, deploys
+human approval through existing lifecycle guards; it starts no workflow. The bootstrap process waits at a receive task and has no
+side effects. The opt-in [approved execution backend](approved-execution.md)
+registers a second pinned process and starts run/job/engine records atomically
+through a trusted Java port; it adds no automatic inbox dispatch. The restart test creates a clearly marked approval fixture, deploys
 a second definition, and verifies the original run and stored plan/config/approval
 identity remain unchanged. That is persistence evidence, not authorization enforcement.
 No job update implicitly marks a story merged. #14 owns guarded domain transitions;
