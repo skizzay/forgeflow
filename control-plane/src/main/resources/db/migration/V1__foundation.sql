@@ -120,3 +120,20 @@ create table lifecycle_transition (
     occurred_at timestamptz not null,
     unique (entity_kind,entity_id,resulting_version)
 );
+
+-- Immutable evidence for the opt-in, configured human approval command (#46).
+create table manual_plan_approval (
+    approval_id uuid primary key,
+    epic_id uuid not null references epic(id),
+    story_id uuid not null references story(id),
+    plan_revision text not null,
+    configuration_sha256 text not null check (configuration_sha256 ~ '^[0-9a-f]{64}$'),
+    workflow_key text not null,
+    workflow_version integer not null,
+    process_definition_id text not null,
+    definition_sha256 text not null check (definition_sha256 ~ '^[0-9a-f]{64}$'),
+    approved_by text not null,
+    approved_at timestamptz not null,
+    foreign key (workflow_key, workflow_version, process_definition_id)
+        references workflow_definition(workflow_key, registry_version, definition_id)
+);

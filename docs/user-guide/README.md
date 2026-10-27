@@ -9,3 +9,5 @@ Planned topics: installation, connecting a repository, approving work, following
 - [GitHub webhook inbox](github-webhooks.md) — enable signed delivery ingestion and inspect processing status.
 
 - [OAuth2 worker authentication](worker-authentication.md) — Spring Boot OAuth2 settings and principal mapping; job endpoints remain unimplemented.
+
+- [Manual plan approval](manual-plan-approval.md) — configure one epic/story pair and issue authenticated approval or invalidation commands.
