@@ -31,7 +31,7 @@ to scope source inspection; a repository-wide scan is not the onboarding path.
 | Webhook authentication, inbox and asynchronous processing | [Webhook inbox](docs/architecture/webhook-inbox.md) |
 | Job/story/epic entities, transitions, approval and recovery guards | [Lifecycle](docs/architecture/lifecycle-states.md) |
 | Flowable progression and ticket/repository integration boundaries | [Workflow and provider boundaries](docs/architecture/workflow-boundaries.md) — target design and implementation status |
-| Worker OAuth2 settings and principal mapping | [Worker authentication](docs/user-guide/worker-authentication.md) — external identity provider; authentication boundary only |
+| Spring Boot worker OAuth2 settings and principal mapping | [Worker authentication](docs/user-guide/worker-authentication.md) — external identity provider; authentication boundary only |
 | Worker API messages, leases, fencing and cancellation | [Worker protocol](docs/requirements/worker-protocol.md) — proposed contract, not implemented endpoints |
 | Local build, verification and runtime commands | [Local control plane](docs/user-guide/local-control-plane.md) |
 | Evidence behind a design decision or experiment reproduction | [Research index](docs/research/README.md) — historical evidence, not the current specification |

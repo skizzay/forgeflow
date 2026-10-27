@@ -1,17 +1,14 @@
 package io.forgeflow.controlplane.worker.configuration;
 
 import io.forgeflow.controlplane.worker.adapter.in.security.WorkerAuthentication;
-import java.util.List;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
-import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
-import org.springframework.security.oauth2.jwt.JwtClaimValidator;
-import org.springframework.security.oauth2.jwt.JwtValidators;
-import org.springframework.security.oauth2.jwt.NimbusReactiveJwtDecoder;
+import org.springframework.boot.security.oauth2.server.resource.autoconfigure.OAuth2ResourceServerProperties;
+import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
 import reactor.core.publisher.Mono;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.web.server.SecurityWebFilterChain;
@@ -25,13 +22,14 @@ public class WorkerSecurityConfiguration {
     @Bean
     @Order(-1)
     @ConditionalOnProperty(prefix = "forgeflow.worker", name = "enabled", havingValue = "true")
-    SecurityWebFilterChain workerSecurity(ServerHttpSecurity http, WorkerSettings settings) {
-        var decoder = NimbusReactiveJwtDecoder.withJwkSetUri(settings.jwkSetUri()).build();
-        decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
-                JwtValidators.createDefaultWithIssuer(settings.issuer()),
-                new JwtClaimValidator<List<String>>("aud", audiences ->
-                        audiences != null && audiences.contains(settings.audience())),
-                new JwtClaimValidator<Object>("exp", expiry -> expiry != null)));
+    SecurityWebFilterChain workerSecurity(ServerHttpSecurity http, WorkerSettings settings,
+                                        ReactiveJwtDecoder decoder, OAuth2ResourceServerProperties oauthProperties) {
+        var jwtProperties = oauthProperties.getJwt();
+        if (jwtProperties.getIssuerUri() == null || jwtProperties.getIssuerUri().isBlank()
+                || jwtProperties.getAudiences() == null || jwtProperties.getAudiences().isEmpty()
+                || jwtProperties.getAudiences().stream().anyMatch(String::isBlank)) {
+            throw new IllegalArgumentException("Worker access requires OAuth2 issuer-uri and audiences");
+        }
         return http.securityMatcher(ServerWebExchangeMatchers.pathMatchers("/api/worker/v1", "/api/worker/v1/**"))
                 .securityContextRepository(NoOpServerSecurityContextRepository.getInstance())
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)

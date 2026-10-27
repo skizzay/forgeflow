@@ -16,7 +16,7 @@ The intended stack is Java/Spring Boot with PostgreSQL and a separate Java worke
 
 - [Separate job, story and epic lifecycle](lifecycle-states.md) — guarded transitions, pinned identity, audit and recovery boundaries for #14.
 
-- [Worker OAuth2 authentication](../user-guide/worker-authentication.md) — external issuer configuration and principal mapping; ForgeFlow is a resource server, not an identity platform.
+- [Worker OAuth2 authentication](../user-guide/worker-authentication.md) — Boot-managed JWT configuration and principal mapping; ForgeFlow is a resource server, not an identity platform.
 - [Worker protocol](../requirements/worker-protocol.md) — proposed API messages, lease ownership and cancellation/recovery diagrams; endpoints are not implemented yet.
 
 - [Flowable and provider boundaries](workflow-boundaries.md) — target event-driven orchestration, independent ticket/repository inputs, review/remediation/merge loop and worker boundaries; includes implementation-status distinctions.

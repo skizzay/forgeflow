@@ -20,12 +20,28 @@ control plane needs only public provider metadata and a trusted identity mapping
 |---|---|
 | `FORGEFLOW_WORKER_ENABLED` | `true` enables worker v1 access; defaults to false |
 | `FORGEFLOW_WORKER_ID` | Stable, pre-provisioned ForgeFlow worker UUID |
-| `FORGEFLOW_WORKER_ISSUER` | Exact trusted token issuer, e.g. `https://identity.example/realms/home` |
-| `FORGEFLOW_WORKER_JWK_SET_URI` | Provider's HTTPS public signing-key endpoint |
-| `FORGEFLOW_WORKER_AUDIENCE` | Required access-token audience, e.g. `forgeflow` |
+| `SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUERURI` | Exact trusted token issuer, e.g. `https://identity.example/realms/home` |
+| `SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWKSETURI` | Optional HTTPS public signing-key endpoint; otherwise discovered from issuer |
+| `SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_AUDIENCES` | Required access-token audience, e.g. `forgeflow` |
 | `FORGEFLOW_WORKER_SUBJECT` | Exact trusted controller subject within this issuer |
 
-All settings are required when enabled. This deliberately supports one configured
+The same provider settings can be supplied as standard Spring YAML:
+
+```yaml
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: https://identity.example/realms/home
+          jwk-set-uri: https://identity.example/realms/home/protocol/openid-connect/certs
+          audiences:
+            - forgeflow
+```
+
+All settings except the explicit JWKS URI are required when enabled. Spring Boot
+auto-configures the reactive JWT decoder from its standard resource-server
+properties. ForgeFlow configures only worker identity and authorization. This deliberately supports one configured
 issuer/subject-to-worker mapping, not a provisioning service. Compose requires
 explicit environment forwarding (`-e VARIABLE_NAME`, without embedding secrets).
 
@@ -45,7 +61,7 @@ sequenceDiagram
 
 Send a single `Authorization: Bearer <access-token>` header over HTTPS, with a
 protected TLS-termination hop. Spring Security validates signatures, issuer,
-audience, expiry and not-before time (with its default clock skew). The configured
+audience, expiry and not-before time (with its default clock skew). ForgeFlow additionally rejects tokens without an expiry. The configured
 subject is mapped to a framework-free worker principal; request-body identity is
 ignored. Only the worker scope is retained as an authority. No session is created.
 
@@ -64,7 +80,7 @@ rotation. Changing the mapping requires restarting all control-plane instances.
 Never pass controller credentials or access tokens into untrusted job containers,
 Git, URLs or logs. Deploy and operate the provider separately.
 
-Reactive security tests use real RSA-signed tokens and a local public JWKS endpoint
+Reactive security tests load Boot's actual resource-server auto-configuration and use real RSA-signed tokens and a local public JWKS endpoint
 to verify identity binding, signature/issuer/audience/expiry rejection, required
 scope, route isolation, disabled configuration and session absence. Test-only
 probe routes are not production endpoints. These tests do not establish live IdP,

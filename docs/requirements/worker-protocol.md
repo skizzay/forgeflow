@@ -97,6 +97,7 @@ raw request bodies, source code or process output.
 
 Each request carries `Authorization: Bearer <access-token>`. An external OAuth2
 provider issues short-lived RS256 JWT access tokens using client credentials.
+Spring Boot configures the JWT decoder from standard resource-server properties.
 Validate signature against trusted public keys, exact issuer, audience, expiry
 and not-before time. Map the configured issuer/subject to a stable worker UUID
 and require scope `forgeflow.worker`. No shared API secret, token issuance,

@@ -93,7 +93,10 @@ transaction and replay orchestration stay in the framework-free application core
 ## OAuth2 worker authentication
 
 The #38 implementation delegates JWT verification to Spring Security's reactive
-OAuth2 resource server, configured in `worker.configuration`. The external provider
+OAuth2 resource server. Spring Boot auto-configures the reactive JWT decoder from
+standard `spring.security.oauth2.resourceserver.jwt` properties;
+`worker.configuration` wires the worker route policy and requires issuer/audience
+configuration. The identity adapter additionally requires an expiry claim. The external provider
 owns accounts, client credentials, directories and token issuance; LDAP/AD
 federation belongs there. ForgeFlow does not implement an identity platform.
 

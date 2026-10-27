@@ -14,8 +14,8 @@ public final class WorkerAuthentication {
     private WorkerAuthentication() { }
 
     public static UsernamePasswordAuthenticationToken map(Jwt jwt, String subject, UUID workerId) {
-        if (!subject.equals(jwt.getSubject())) {
-            throw new BadCredentialsException("Unrecognized worker identity");
+        if (jwt.getExpiresAt() == null || !subject.equals(jwt.getSubject())) {
+            throw new BadCredentialsException("Worker identity or required expiry is missing");
         }
         var granted = new JwtGrantedAuthoritiesConverter().convert(jwt);
         var workerScope = new SimpleGrantedAuthority("SCOPE_forgeflow.worker");

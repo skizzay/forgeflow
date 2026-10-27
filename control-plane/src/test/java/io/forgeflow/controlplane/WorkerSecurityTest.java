@@ -22,6 +22,8 @@ import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ReactiveWebApplicationContextRunner;
+import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.security.oauth2.server.resource.autoconfigure.reactive.ReactiveOAuth2ResourceServerAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
@@ -43,6 +45,7 @@ class WorkerSecurityTest {
     private final RSAKey key = new RSAKeyGenerator(2048).keyID("test").generate();
     private final HttpServer keys = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
     private final ReactiveWebApplicationContextRunner runner = new ReactiveWebApplicationContextRunner()
+            .withConfiguration(AutoConfigurations.of(ReactiveOAuth2ResourceServerAutoConfiguration.class))
             .withUserConfiguration(HttpSecurityConfiguration.class, WorkerSecurityConfiguration.class, Probe.class);
 
     WorkerSecurityTest() throws Exception {
@@ -59,8 +62,8 @@ class WorkerSecurityTest {
 
     private ReactiveWebApplicationContextRunner enabled() {
         return runner.withPropertyValues("forgeflow.worker.enabled=true", "forgeflow.worker.id=" + worker,
-                "forgeflow.worker.issuer=https://issuer.example", "forgeflow.worker.audience=forgeflow",
-                "forgeflow.worker.subject=controller", "forgeflow.worker.jwk-set-uri=http://127.0.0.1:"
+                "spring.security.oauth2.resourceserver.jwt.issuer-uri=https://issuer.example", "spring.security.oauth2.resourceserver.jwt.audiences=forgeflow",
+                "forgeflow.worker.subject=controller", "spring.security.oauth2.resourceserver.jwt.jwk-set-uri=http://127.0.0.1:"
                         + keys.getAddress().getPort() + "/jwks");
     }
     private String token(RSAKey signingKey, String issuer, String audience, String subject,
@@ -134,7 +137,11 @@ class WorkerSecurityTest {
         runner.run(context -> WebTestClient.bindToApplicationContext(context).build().get()
                 .uri("/api/worker/v1/probe").exchange().expectStatus().isUnauthorized());
         runner.withPropertyValues("forgeflow.worker.enabled=true").run(context -> assertThat(context).hasFailed());
-        assertThatThrownBy(() -> new WorkerSettings(true, worker, "issuer", "jwks", "aud", ""))
+        enabled().withPropertyValues("spring.security.oauth2.resourceserver.jwt.audiences=")
+                .run(context -> assertThat(context).hasFailed());
+        enabled().withPropertyValues("spring.security.oauth2.resourceserver.jwt.issuer-uri=")
+                .run(context -> assertThat(context).hasFailed());
+        assertThatThrownBy(() -> new WorkerSettings(true, worker, ""))
                 .isInstanceOf(IllegalArgumentException.class);
     }
     @Test

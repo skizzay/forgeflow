@@ -13,9 +13,6 @@ forgeflow:
   worker:
     enabled: ${FORGEFLOW_WORKER_ENABLED:false}
     id: ${FORGEFLOW_WORKER_ID:}
-    issuer: ${FORGEFLOW_WORKER_ISSUER:}
-    jwk-set-uri: ${FORGEFLOW_WORKER_JWK_SET_URI:}
-    audience: ${FORGEFLOW_WORKER_AUDIENCE:}
     subject: ${FORGEFLOW_WORKER_SUBJECT:}
   github:
     webhook:
