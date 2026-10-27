@@ -1,6 +1,6 @@
 # Configured-worker authentication
 
-Draft implementation for [#38](https://github.com/skizzay/forgeflow/issues/38).
+Implementation for [#38](https://github.com/skizzay/forgeflow/issues/38).
 This enables authentication for worker v1 routes, not job execution: production
 claim/heartbeat/result endpoints are not implemented. A valid credential on an
 absent route returns 404. Worker identity does not grant human approval or SCM

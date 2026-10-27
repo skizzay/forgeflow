@@ -9,7 +9,7 @@ have no database/Flowable access. See [architecture](../architecture/overview.md
 
 ## Authentication implementation status
 
-The #38 draft adds an opt-in configured-worker authentication adapter only.
+The #38 implementation adds an opt-in configured-worker authentication adapter only.
 It binds a bearer credential to a server-configured UUID on worker v1 routes;
 there are still no production claim/heartbeat/result endpoints. Body fields do
 not choose the principal. Future activity handlers must additionally enforce

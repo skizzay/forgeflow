@@ -92,7 +92,7 @@ transaction and replay orchestration stay in the framework-free application core
 
 ## Configured-worker authentication
 
-The #38 draft adds `worker.adapter.in.security.WorkerAuthentication` for bearer
+The #38 implementation adds `worker.adapter.in.security.WorkerAuthentication` for bearer
 verification and `worker.configuration` for validated settings and a dedicated
 WebFlux security chain. It authenticates only `/api/worker/v1` and descendants;
 other paths retain the existing health/webhook/default-deny chain. It uses no
