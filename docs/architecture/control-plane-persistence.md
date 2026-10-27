@@ -60,8 +60,9 @@ lock and deploys the packaged side-effect-free workflow once; content mismatch o
 a missing registered definition fails startup. A version change must use a new
 registry version, never overwrite an existing registered definition.
 
-This story has no run-start endpoint, approval authority, scheduler or worker
-claim/completion API. Its packaged process waits at a receive task and has no
+The bootstrap has no run-start endpoint, scheduler or worker claim/completion API.
+The opt-in [manual approval command](manual-plan-approval.md) records one configured
+human approval through existing lifecycle guards; it starts no workflow. Its packaged process waits at a receive task and has no
 side effects. The restart test creates a clearly marked approval fixture, deploys
 a second definition, and verifies the original run and stored plan/config/approval
 identity remain unchanged. That is persistence evidence, not authorization enforcement.
@@ -96,14 +97,14 @@ the initial-release contract.
 
 Runtime uses Spring WebFlux/Reactor Netty and reactive Spring Security, and binds
 to loopback by default. JDBC/Flowable remain imperative/blocking and share Boot’s
-JDBC transaction manager. Application-owned persistence work currently runs only during startup; Actuator
+JDBC transaction manager. Application-owned request persistence runs on bounded elastic threads; Actuator
 adapts the JDBC health contributor for reactive execution. Future HTTP
 handlers must delegate the whole imperative transaction to a bounded blocking
 executor (for example `Mono.fromCallable(...).subscribeOn(Schedulers.boundedElastic())`),
 never block a Netty event loop or span a JDBC transaction across reactive hops.
 No R2DBC conversion is implied. Runtime binds to loopback by default. Only GET `/actuator/health` is public, with
-status only; other routes are denied except the explicitly enabled HMAC webhook
-ingress described below. The optional [verified webhook ingress](webhook-inbox.md) is implemented in #8;
+status only; other routes are denied except explicitly enabled HMAC webhook ingress and the
+OAuth2-protected manual approval routes. The optional [verified webhook ingress](webhook-inbox.md) is implemented in #8;
 worker and other GitHub routes do not exist yet.
 The local Docker command binds inside its container and publishes only host loopback.
 No external identity service, tunnel or Docker host socket is configured. The

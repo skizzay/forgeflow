@@ -8,7 +8,10 @@ Implements [#14](https://github.com/skizzay/forgeflow/issues/14), parent
 `ChangeLifecycle` is a Java input port with a framework-free application/domain
 core. The JDBC adapter updates the existing job/story/epic tables. Spring supplies
 the transaction adapter and composes a default deny-unverified authority adapter.
-There is no HTTP endpoint, scheduler, GitHub client or Docker action in this story.
+The lifecycle port itself has no HTTP endpoint, scheduler, GitHub client or Docker action.
+The opt-in [manual approval command](manual-plan-approval.md) supplies narrowly
+scoped human authority for the configured epic; the general authority still denies
+unverified transitions.
 
 Flowable owns process/activity progression. The domain entities own guarded
 ForgeFlow domain transitions; they do not sequence or complete BPMN activities.
@@ -136,7 +139,9 @@ proof. Commands do not carry authorization booleans. A supplied worker ID must
 match the server-authenticated worker as well as the live lease/fence record.
 Configured workflows, labels and model output cannot manufacture these facts.
 
-The production default supplies no verified facts and denies guarded transitions.
+The general production default supplies no verified facts and denies guarded transitions.
+The manual approval use case privately supplies authenticated human facts for
+approval/invalidation of its configured epic only; it cannot authorize dispatch.
 There is no configuration switch to waive policy. Future trusted identity/approval
 and GitHub adapters (#9/#12/#15/#5) must implement this contract with real evidence;
 replacing the authority bean is reviewed server code, not project-controlled data.

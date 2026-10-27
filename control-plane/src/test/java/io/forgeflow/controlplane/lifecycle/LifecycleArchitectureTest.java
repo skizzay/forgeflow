@@ -22,6 +22,13 @@ class LifecycleArchitectureTest {
                 .should().dependOnClassesThat().resideInAnyPackage("..lifecycle.configuration..","..lifecycle.application").check(feature);
     }
     @Test
+    void inboundAdaptersCannotDependOnPersistenceAdapters() {
+        var feature = new ClassFileImporter().withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
+                .importPackages("io.forgeflow.controlplane.lifecycle");
+        noClasses().that().resideInAPackage("..lifecycle.adapter.in..")
+                .should().dependOnClassesThat().resideInAPackage("..lifecycle.adapter.out..").check(feature);
+    }
+    @Test
     void aggregateRulesCannotReachIntoOtherAggregatesOrApplicationEvidenceComposition() {
         var domain = new ClassFileImporter().withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
                 .importPackages("io.forgeflow.controlplane.lifecycle.domain");

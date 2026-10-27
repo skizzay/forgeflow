@@ -35,8 +35,11 @@ Each task must specify dependencies, acceptance criteria, verification, and comp
 [Issue #18](https://github.com/skizzay/forgeflow/issues/18) is closed with an
 accepted bounded research result; see the [synthesis](../research/issue-18-results.md).
 PR #21 is retained as an unmerged experiment archive, not a production dependency.
-Next implementation is #7 (bootstrap), followed by its dependent foundation and
-worker contracts. #13 still owns scoped GitHub credential and provider operational
+Bootstrap, webhook inbox, lifecycle guards and worker OAuth2 authentication are
+implemented. The current delivery sequence is manual plan approval (#46), pinned
+event-to-job creation (#47), then atomic worker claiming (#39). Approval alone
+does not dispatch work; prerequisite PRs must still integrate into the Execution
+epic before being treated as satisfied. #13 still owns scoped GitHub credential and provider operational
 validation; #11 owns the actual approved-issue-to-PR demonstration; #15 owns real
 GitHub reconciliation. Milestone 1 is not complete. No new generic Flowable POC
 is required; use the existing evidence while implementing and testing those stories.
