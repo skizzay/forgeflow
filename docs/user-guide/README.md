@@ -8,4 +8,4 @@ Planned topics: installation, connecting a repository, approving work, following
 
 - [GitHub webhook inbox](github-webhooks.md) — enable signed delivery ingestion and inspect processing status.
 
-- [Configured-worker authentication](worker-authentication.md) — opt-in bearer boundary; job endpoints remain unimplemented.
+- [OAuth2 worker authentication](worker-authentication.md) — external issuer and principal mapping; job endpoints remain unimplemented.

@@ -4,12 +4,12 @@ import java.util.UUID;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties("forgeflow.worker")
-public record WorkerSettings(boolean enabled, UUID id, String secret) {
+public record WorkerSettings(boolean enabled, UUID id, String issuer, String jwkSetUri,
+                             String audience, String subject) {
     public WorkerSettings {
-        if (enabled && (id == null || secret == null || !secret.matches("[A-Za-z0-9_-]{32,256}"))) {
-            throw new IllegalArgumentException("Enabled worker access requires an ID and a 32–256 character URL-safe secret");
+        if (enabled && (id == null || blank(issuer) || blank(jwkSetUri) || blank(audience) || blank(subject))) {
+            throw new IllegalArgumentException("Enabled worker access requires ID, issuer, JWKS URI, audience and subject");
         }
     }
-    @Override
-    public String toString() { return "WorkerSettings[enabled=" + enabled + ", id=" + id + ", secret=REDACTED]"; }
+    private static boolean blank(String value) { return value == null || value.isBlank(); }
 }

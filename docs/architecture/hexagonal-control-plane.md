@@ -90,13 +90,22 @@ direction. Its authority adapter defaults to deny-unverified; transition policy
 belongs to its job/story/epic domain entities and focused domain policies;
 transaction and replay orchestration stay in the framework-free application core.
 
-## Configured-worker authentication
+## OAuth2 worker authentication
 
-The #38 implementation adds `worker.adapter.in.security.WorkerAuthentication` for bearer
-verification and `worker.configuration` for validated settings and a dedicated
-WebFlux security chain. It authenticates only `/api/worker/v1` and descendants;
-other paths retain the existing health/webhook/default-deny chain. It uses no
-session, reads no body identity and supplies the configured UUID as the principal.
-CSRF is disabled only on this bearer-only chain. No worker use case, lease,
-provider port or Flowable routing is introduced. See the
-[configuration guide](../user-guide/worker-authentication.md) for its limits.
+The #38 implementation delegates JWT verification to Spring Security's reactive
+OAuth2 resource server, configured in `worker.configuration`. The external provider
+owns accounts, client credentials, directories and token issuance; LDAP/AD
+federation belongs there. ForgeFlow does not implement an identity platform.
+
+`worker.adapter.in.security.WorkerAuthentication` maps the validated subject from
+the trusted issuer to a stable `worker.domain.WorkerPrincipal`. This framework-free
+value carries the worker UUID into future use cases; JWT and Spring types stay
+in the adapter/configuration boundary. Only `forgeflow.worker` scope becomes a
+worker authority, never human approval authority. Resource ownership, fencing and
+approval checks remain contextual application/domain guards.
+
+The stateless chain matches only `/api/worker/v1` and descendants. Other paths
+retain the existing health/webhook/default-deny chain. No request-body identity
+is trusted; CSRF is disabled only on this bearer-only chain. No worker use case,
+lease, provider port or Flowable routing is introduced. See the
+[configuration guide](../user-guide/worker-authentication.md) for settings and limits.
