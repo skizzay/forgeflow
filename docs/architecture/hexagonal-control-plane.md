@@ -89,3 +89,14 @@ The [lifecycle feature](lifecycle-states.md) follows the same core/port/adapter
 direction. Its authority adapter defaults to deny-unverified; transition policy
 belongs to its job/story/epic domain entities and focused domain policies;
 transaction and replay orchestration stay in the framework-free application core.
+
+## Configured-worker authentication
+
+The #38 draft adds `worker.adapter.in.security.WorkerAuthentication` for bearer
+verification and `worker.configuration` for validated settings and a dedicated
+WebFlux security chain. It authenticates only `/api/worker/v1` and descendants;
+other paths retain the existing health/webhook/default-deny chain. It uses no
+session, reads no body identity and supplies the configured UUID as the principal.
+CSRF is disabled only on this bearer-only chain. No worker use case, lease,
+provider port or Flowable routing is introduced. See the
+[configuration guide](../user-guide/worker-authentication.md) for its limits.

@@ -7,6 +7,16 @@ have no database/Flowable access. See [architecture](../architecture/overview.md
 [lifecycle guards](../architecture/lifecycle-states.md) and
 [recovery evidence](../research/issue-18-results.md).
 
+## Authentication implementation status
+
+The #38 draft adds an opt-in configured-worker authentication adapter only.
+It binds a bearer credential to a server-configured UUID on worker v1 routes;
+there are still no production claim/heartbeat/result endpoints. Body fields do
+not choose the principal. Future activity handlers must additionally enforce
+attempt ownership and lifecycle guards; authentication alone grants neither.
+See [local worker authentication](../user-guide/worker-authentication.md) for
+configuration, credential replacement and verification limits.
+
 ## Where Flowable and provider ports fit
 
 The proposed [workflow/provider boundaries](../architecture/workflow-boundaries.md)
@@ -247,7 +257,7 @@ worker outcome. The worker neither sequences the workflow nor grants approval.
 
 ## Errors and ownership of retry
 
-Errors contain exactly `commandId` (null if missing/malformed), `code`, `action`
+Errors contain exactly `commandId` (null if missing/malformed or not read before authentication), `code`, `action`
 (`RETRY_SAME_COMMAND`, `STOP`, `FIX_REQUEST`). No internal SQL/exception text.
 
 | HTTP | Codes | Action |
@@ -264,8 +274,9 @@ failures with the same operation ID and bounded backoff (1, 2, then 5 seconds).
 It stops active work by lease expiry regardless of connectivity. The control plane
 records RECONCILING and verified remote/local cleanup facts; Flowable owns the
 guarded wait/retry path. Neither an engine retry nor a Java handler may dispatch
-another container while the prior attempt remains unresolved. Production endpoints remain deny-by-default
-until their authentication and trusted authority adapters are implemented.
+another container while the prior attempt remains unresolved. Worker authentication is disabled by default. No job operation is enabled by
+this authentication adapter; trusted activity authority/ownership handlers remain
+required before production endpoints can be implemented.
 
 ## Expired-lease retry path
 

@@ -7,3 +7,5 @@ Planned topics: installation, connecting a repository, approving work, following
 - [Local control-plane bootstrap](local-control-plane.md) — migrate the database and run the local health endpoint.
 
 - [GitHub webhook inbox](github-webhooks.md) — enable signed delivery ingestion and inspect processing status.
+
+- [Configured-worker authentication](worker-authentication.md) — draft opt-in bearer boundary; job endpoints remain unimplemented.
