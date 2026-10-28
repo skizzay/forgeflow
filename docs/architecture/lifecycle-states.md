@@ -71,8 +71,8 @@ new transitions. Missing/revoked/mismatched approval fails closed. Its private
 system authority never replaces the general deny-unverified authority.
 
 This internal port starts no engine instance or job and has no HTTP/polling entry.
-The later starter (#89) must wrap preparation and engine/domain writes in the
-same outer transaction. Tests verify valid/idempotent preparation, denial and
+The approved starter (#89) wraps preparation and engine/domain writes in the
+same outer transaction; see [persistence](control-plane-persistence.md#approved-execution-startup). Tests verify valid/idempotent preparation, denial and
 outer rollback; the original human approval remains immutable evidence.
 Spring composition injects a shared `Clock` into lifecycle transitions and parent
 preparation, and a `Supplier<UUID>` into preparation for transition command IDs.
