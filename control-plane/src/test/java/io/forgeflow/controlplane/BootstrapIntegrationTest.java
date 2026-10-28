@@ -124,6 +124,17 @@ class BootstrapIntegrationTest {
                         run, story, pinnedDefinition, process.getId(), "fixture-plan-v1", "a".repeat(64), UUID.randomUUID());
                 return process.getId();
             });
+            // Exercise the domain uniqueness constraint with distinct opaque engine IDs.
+            String copy = "insert into workflow_run(id,story_id,workflow_key,workflow_version,process_definition_id,process_instance_id,"
+                    + "plan_revision,configuration_sha256,approval_id,approved_by,approved_at) "
+                    + "select ?,story_id,workflow_key,workflow_version,process_definition_id,?,plan_revision,configuration_sha256,"
+                    + "approval_id,approved_by,approved_at from workflow_run where id=?";
+            assertThatThrownBy(() -> jdbc.update(copy, UUID.randomUUID(), UUID.randomUUID().toString(), run))
+                    .isInstanceOf(DataIntegrityViolationException.class);
+            UUID another = UUID.randomUUID();
+            assertThat(jdbc.update(copy.replace("approval_id,approved_by,approved_at from", "?,approved_by,approved_at from"),
+                    another, UUID.randomUUID().toString(), UUID.randomUUID(), run)).isEqualTo(1);
+            jdbc.update("delete from workflow_run where id=?", another);
             // Simulate deployment v2. It must not migrate an already-running v1 instance.
             String xml = """
                 <definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL" targetNamespace="test">
