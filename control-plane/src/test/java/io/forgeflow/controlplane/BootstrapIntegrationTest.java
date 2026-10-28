@@ -152,6 +152,33 @@ class BootstrapIntegrationTest {
     }
 
     @Test
+    void approvedWorkflowRegistrationIsOptInRepeatableAndStartsNoInstance() {
+        String definition;
+        try (var context = start(true, "--forgeflow.execution.enabled=true")) {
+            var jdbc = context.getBean(JdbcTemplate.class);
+            definition = jdbc.queryForObject("select definition_id from workflow_definition where workflow_key='approved-story'", String.class);
+            assertThat(jdbc.queryForObject("select count(*) from workflow_definition", Integer.class)).isEqualTo(2);
+            assertThat(jdbc.queryForMap("select input_contract_version,output_contract_version from activity_definition where activity_key='develop-story'"))
+                    .containsEntry("input_contract_version", 1).containsEntry("output_contract_version", 1);
+            assertThat(context.getBean(ProcessEngine.class).getRuntimeService().createProcessInstanceQuery().count()).isZero();
+        }
+        try (var context = start(false, "--forgeflow.execution.enabled=true")) {
+            assertThat(context.getBean(JdbcTemplate.class).queryForObject("select definition_id from workflow_definition where workflow_key='approved-story'", String.class))
+                    .isEqualTo(definition);
+            assertThat(context.getBean(ProcessEngine.class).getRepositoryService().createDeploymentQuery().count()).isEqualTo(2);
+        }
+    }
+
+    @Test
+    void changedApprovedActivityContractFailsRegistration() {
+        try (var context = start(true, "--forgeflow.execution.enabled=true")) {
+            context.getBean(JdbcTemplate.class).update("update activity_definition set input_contract_version=2 where activity_key='develop-story'");
+        }
+        assertThatThrownBy(() -> start(false, "--forgeflow.execution.enabled=true"))
+                .hasStackTraceContaining("Approved activity registry incompatible");
+    }
+
+    @Test
     void engineAndDomainWritesRollbackTogether() {
         try (var context = start(true)) {
             var engine = context.getBean(ProcessEngine.class);
@@ -188,7 +215,7 @@ class BootstrapIntegrationTest {
         try (var context = start(true)) {
             context.getBean(JdbcTemplate.class).update("update workflow_definition set content_sha256=?", "0".repeat(64));
         }
-        assertThatThrownBy(() -> start(false)).hasStackTraceContaining("Bootstrap registry incompatible");
+        assertThatThrownBy(() -> start(false)).hasStackTraceContaining("Workflow registry incompatible");
     }
 
     @Test

@@ -67,3 +67,12 @@ or deletes data automatically. Preserve any data you need before recreating a da
 The initial schema includes lifecycle versions, audit records and approval pins.
 The lifecycle feature has no public command endpoint yet; its default authority
 denies guarded transitions until trusted approval/identity/SCM integrations are installed.
+
+## Optional workflow registration
+
+Set `forgeflow.execution.enabled: true` in external Spring YAML to register the
+packaged `approved-story` v1 workflow and `develop-story` v1 activity. It defaults
+to false. Registration starts no process or job. Runtime binding and the approved
+start operation remain pending #89; there is no start command in this slice.
+The bootstrap integration tests verify opt-in registration, restart reuse and
+activity-contract rejection against PostgreSQL.
