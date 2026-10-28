@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:flowable="http://flowable.org/bpmn" targetNamespace="https://forgeflow.io/workflows">
+  <process id="approvedStory" name="Approved single-story execution" isExecutable="true">
+    <startEvent id="start"/>
+    <sequenceFlow id="start-dispatch" sourceRef="start" targetRef="develop-story"/>
+    <serviceTask id="develop-story" name="Queue approved activity" flowable:delegateExpression="${enqueueApprovedActivity}"/>
+    <sequenceFlow id="dispatch-wait" sourceRef="develop-story" targetRef="awaitOutcome"/>
+    <receiveTask id="awaitOutcome" name="Wait for accepted worker outcome"/>
+    <sequenceFlow id="wait-end" sourceRef="awaitOutcome" targetRef="end"/>
+    <endEvent id="end"/>
+  </process>
+</definitions>
