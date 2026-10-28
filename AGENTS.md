@@ -27,7 +27,7 @@ to scope source inspection; a repository-wide scan is not the onboarding path.
 | Task | Canonical guide |
 |---|---|
 | Java package layout, ports, adapters and wiring boundaries | [Hexagonal control plane](docs/architecture/hexagonal-control-plane.md) |
-| PostgreSQL, workflow registration, schema initialization and engine/domain transactions | [Control-plane persistence](docs/architecture/control-plane-persistence.md) |
+| PostgreSQL, execution intent persistence, workflow registration and engine/domain transactions | [Control-plane persistence](docs/architecture/control-plane-persistence.md) |
 | Webhook authentication, inbox and asynchronous processing | [Webhook inbox](docs/architecture/webhook-inbox.md) |
 | Human plan approval, trusted pins and invalidation | [Manual plan approval](docs/architecture/manual-plan-approval.md) |
 | Job/story/epic entities, transitions, approval and recovery guards | [Lifecycle](docs/architecture/lifecycle-states.md) |
