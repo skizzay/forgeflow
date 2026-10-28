@@ -10,6 +10,8 @@ spring:
   main:
     banner-mode: "off"
 forgeflow:
+  execution:
+    enabled: false
   manual-approval:
     enabled: false
   worker:

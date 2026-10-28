@@ -53,6 +53,11 @@ There are no cross-schema foreign keys
 into engine internals; engine IDs are opaque correlation values. The registry
 uses a composite foreign key so a run's key/version cannot name another engine definition.
 
+A run is unique for its `(story_id, approval_id)` pair. PostgreSQL rejects a
+second run even when its run and engine-instance IDs differ; a new approval ID
+is a different identity. This is database protection, not an enqueue operation
+or permission to retry work. The bootstrap PostgreSQL test verifies both cases.
+
 Starting a workflow and storing its domain correlation must use the same Spring
 transaction. A PostgreSQL-backed rollback test demonstrates both writes roll back
 together. Bootstrap registration is serialized with a transaction-scoped advisory
@@ -69,6 +74,22 @@ identity remain unchanged. That is persistence evidence, not authorization enfor
 No job update implicitly marks a story merged. #14 owns guarded domain transitions;
 #9/#15 own lease/fencing/recovery policy, and #8 owns verified inbox ingestion.
 Schema states are a constrained initial vocabulary, not those completed behaviors.
+
+## Optional approved-workflow registration
+
+`forgeflow.execution.enabled` defaults to false. When enabled, startup additionally
+registers packaged `approved-story` v1 and `develop-story` v1 with input/output
+contracts v1. Existing content and contract mismatches fail startup; restart does
+not redeploy or overwrite them. Registration creates no process or job. The
+BPMN declares initial dispatch followed by `awaitOutcome`, but its runtime delegate
+binding and approved starter are pending #89. Starting it is not a supported
+operation in this registration-only slice (#87).
+
+```mermaid
+flowchart LR
+    Start --> Queue["develop-story: runtime binding pending"]
+    Queue --> Wait["awaitOutcome"]
+```
 
 ## Schema initialization
 

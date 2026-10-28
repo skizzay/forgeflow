@@ -124,6 +124,17 @@ class BootstrapIntegrationTest {
                         run, story, pinnedDefinition, process.getId(), "fixture-plan-v1", "a".repeat(64), UUID.randomUUID());
                 return process.getId();
             });
+            // Exercise the domain uniqueness constraint with distinct opaque engine IDs.
+            String copy = "insert into workflow_run(id,story_id,workflow_key,workflow_version,process_definition_id,process_instance_id,"
+                    + "plan_revision,configuration_sha256,approval_id,approved_by,approved_at) "
+                    + "select ?,story_id,workflow_key,workflow_version,process_definition_id,?,plan_revision,configuration_sha256,"
+                    + "approval_id,approved_by,approved_at from workflow_run where id=?";
+            assertThatThrownBy(() -> jdbc.update(copy, UUID.randomUUID(), UUID.randomUUID().toString(), run))
+                    .isInstanceOf(DataIntegrityViolationException.class);
+            UUID another = UUID.randomUUID();
+            assertThat(jdbc.update(copy.replace("approval_id,approved_by,approved_at from", "?,approved_by,approved_at from"),
+                    another, UUID.randomUUID().toString(), UUID.randomUUID(), run)).isEqualTo(1);
+            jdbc.update("delete from workflow_run where id=?", another);
             // Simulate deployment v2. It must not migrate an already-running v1 instance.
             String xml = """
                 <definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL" targetNamespace="test">
@@ -149,6 +160,33 @@ class BootstrapIntegrationTest {
                     .containsEntry("approved_by", "test-fixture-not-human-approval");
             assertThat(jdbc.queryForObject("select state from story", String.class)).isEqualTo("DRAFT");
         }
+    }
+
+    @Test
+    void approvedWorkflowRegistrationIsOptInRepeatableAndStartsNoInstance() {
+        String definition;
+        try (var context = start(true, "--forgeflow.execution.enabled=true")) {
+            var jdbc = context.getBean(JdbcTemplate.class);
+            definition = jdbc.queryForObject("select definition_id from workflow_definition where workflow_key='approved-story'", String.class);
+            assertThat(jdbc.queryForObject("select count(*) from workflow_definition", Integer.class)).isEqualTo(2);
+            assertThat(jdbc.queryForMap("select input_contract_version,output_contract_version from activity_definition where activity_key='develop-story'"))
+                    .containsEntry("input_contract_version", 1).containsEntry("output_contract_version", 1);
+            assertThat(context.getBean(ProcessEngine.class).getRuntimeService().createProcessInstanceQuery().count()).isZero();
+        }
+        try (var context = start(false, "--forgeflow.execution.enabled=true")) {
+            assertThat(context.getBean(JdbcTemplate.class).queryForObject("select definition_id from workflow_definition where workflow_key='approved-story'", String.class))
+                    .isEqualTo(definition);
+            assertThat(context.getBean(ProcessEngine.class).getRepositoryService().createDeploymentQuery().count()).isEqualTo(2);
+        }
+    }
+
+    @Test
+    void changedApprovedActivityContractFailsRegistration() {
+        try (var context = start(true, "--forgeflow.execution.enabled=true")) {
+            context.getBean(JdbcTemplate.class).update("update activity_definition set input_contract_version=2 where activity_key='develop-story'");
+        }
+        assertThatThrownBy(() -> start(false, "--forgeflow.execution.enabled=true"))
+                .hasStackTraceContaining("Approved activity registry incompatible");
     }
 
     @Test
@@ -188,7 +226,7 @@ class BootstrapIntegrationTest {
         try (var context = start(true)) {
             context.getBean(JdbcTemplate.class).update("update workflow_definition set content_sha256=?", "0".repeat(64));
         }
-        assertThatThrownBy(() -> start(false)).hasStackTraceContaining("Bootstrap registry incompatible");
+        assertThatThrownBy(() -> start(false)).hasStackTraceContaining("Workflow registry incompatible");
     }
 
     @Test
