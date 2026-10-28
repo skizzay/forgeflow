@@ -108,3 +108,8 @@ Run `./scripts/verify-bootstrap.sh` for the full regression suite. Tests use a l
 public-key endpoint and disposable PostgreSQL, not a deployed identity provider
 or TLS setup. See [architecture](../architecture/manual-plan-approval.md) for
 transaction, authority and Flowable boundaries.
+
+The internal `PrepareApprovedStory` Java port can prepare approved parent state
+for a later starter; it has no consumer endpoint and creates no workflow/job.
+Its transaction joins an outer starter transaction when present. Automatic
+execution remains unimplemented; see the [lifecycle guide](../architecture/lifecycle-states.md).

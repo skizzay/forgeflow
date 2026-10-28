@@ -60,6 +60,27 @@ individual aggregate transition tables own its rules. The shared repository port
 uses one transaction for state and audit persistence. Attempt lease allocation
 and heartbeat behavior remain #9 rather than introducing a second lease model.
 
+## Internal approved-parent preparation
+
+`PrepareApprovedStory` verifies immutable approval evidence and the exact registered
+definition for the selected `ManualPlan`, under root-to-leaf locks. The supported
+plan has one child and carries no dependency edges; multi-story/DAG plans are
+rejected. It applies existing guarded epic activation and story readiness/activation
+in one transaction. Already-active matching parents return the definition without
+new transitions. Missing/revoked/mismatched approval fails closed. Its private
+system authority never replaces the general deny-unverified authority.
+
+This internal port starts no engine instance or job and has no HTTP/polling entry.
+The later starter (#89) must wrap preparation and engine/domain writes in the
+same outer transaction. Tests verify valid/idempotent preparation, denial and
+outer rollback; the original human approval remains immutable evidence.
+Spring composition injects a shared `Clock` into lifecycle transitions and parent
+preparation, and a `Supplier<UUID>` into preparation for transition command IDs.
+Defaults use UTC system time and random UUIDs; replacement beans can supply a
+clock or the named `lifecycleCommandIds` supplier without changing application
+code. Persistence tests inject fixed time and sequential IDs to verify audit
+values and that an idempotent replay consumes no new IDs.
+
 ## Transition contract
 
 Each command identifies one aggregate, the actor authenticated by its inbound
