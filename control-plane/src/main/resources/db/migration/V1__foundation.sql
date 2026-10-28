@@ -76,6 +76,7 @@ create table workflow_run (
     approved_by text not null,
     approved_at timestamptz not null,
     created_at timestamptz not null default now(),
+    unique (story_id, approval_id),
     foreign key (workflow_key, workflow_version, process_definition_id) references workflow_definition(workflow_key, registry_version, definition_id)
 );
 create table job (
