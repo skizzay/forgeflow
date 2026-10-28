@@ -14,7 +14,7 @@ The intended stack is Java/Spring Boot with PostgreSQL and a separate Java worke
 
 - [Hexagonal control-plane structure](hexagonal-control-plane.md) — framework-free core, ports, adapters and enforced dependency rules.
 
-- [Separate job, story and epic lifecycle](lifecycle-states.md) — guarded transitions, internal approved-parent preparation (#88), pinned identity, audit and recovery boundaries for #14.
+- [Separate job, story and epic lifecycle](lifecycle-states.md) — guarded transitions, internal approved-parent preparation (#88), injectable audit clock/command IDs, pinned identity and recovery boundaries for #14.
 
 - [Worker OAuth2 authentication](../user-guide/worker-authentication.md) — Boot-managed JWT configuration and principal mapping; ForgeFlow is a resource server, not an identity platform.
 - [Worker protocol](../requirements/worker-protocol.md) — proposed API messages, lease ownership and cancellation/recovery diagrams; endpoints are not implemented yet.

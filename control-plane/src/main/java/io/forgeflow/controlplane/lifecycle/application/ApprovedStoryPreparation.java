@@ -18,14 +18,16 @@ import io.forgeflow.controlplane.lifecycle.domain.evidence.DeliveryEvidence;
 import io.forgeflow.controlplane.lifecycle.domain.evidence.RecoveryEvidence;
 import java.time.Clock;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 public final class ApprovedStoryPreparation implements PrepareApprovedStory {
     private final LifecycleRepository repository;
     private final LifecycleTransactions transactions;
     private final ApprovedPlanEvidence evidence;
     private final Clock clock;
-    public ApprovedStoryPreparation(LifecycleRepository repository, LifecycleTransactions transactions, ApprovedPlanEvidence evidence, Clock clock) {
-        this.repository = repository; this.transactions = transactions; this.evidence = evidence; this.clock = clock;
+    private final Supplier<UUID> commandIds;
+    public ApprovedStoryPreparation(LifecycleRepository repository, LifecycleTransactions transactions, ApprovedPlanEvidence evidence, Clock clock, Supplier<UUID> commandIds) {
+        this.repository = repository; this.transactions = transactions; this.evidence = evidence; this.clock = clock; this.commandIds = commandIds;
     }
     @Override public String prepare(ManualPlan plan) {
         return transactions.required(() -> {
@@ -42,11 +44,11 @@ public final class ApprovedStoryPreparation implements PrepareApprovedStory {
                 return new AuthorityFacts(new ActorAuthority(actor, plan.identity(), false, false, null),
                         new RecoveryEvidence(false, null), new DeliveryEvidence(true, null), new CompletionEvidence(false, null));
             }, clock);
-            transitions.transition(new TransitionCommand(UUID.randomUUID(), epicRef, actor, EpicState.APPROVED, EpicState.ACTIVE,
+            transitions.transition(new TransitionCommand(commandIds.get(), epicRef, actor, EpicState.APPROVED, EpicState.ACTIVE,
                     epic.version(), plan.identity(), null, null));
-            transitions.transition(new TransitionCommand(UUID.randomUUID(), storyRef, actor, StoryState.DRAFT, StoryState.READY,
+            transitions.transition(new TransitionCommand(commandIds.get(), storyRef, actor, StoryState.DRAFT, StoryState.READY,
                     story.version(), plan.identity(), null, null));
-            transitions.transition(new TransitionCommand(UUID.randomUUID(), storyRef, actor, StoryState.READY, StoryState.ACTIVE,
+            transitions.transition(new TransitionCommand(commandIds.get(), storyRef, actor, StoryState.READY, StoryState.ACTIVE,
                     story.version() + 1, plan.identity(), null, null));
             return definition;
         });

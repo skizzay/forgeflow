@@ -9,8 +9,13 @@ import io.forgeflow.controlplane.lifecycle.application.port.in.RecordManualAppro
 import io.forgeflow.controlplane.lifecycle.domain.approval.ApprovalIdentity;
 import io.forgeflow.controlplane.lifecycle.domain.approval.ManualPlan;
 import java.sql.DriverManager;
+import java.sql.Timestamp;
 import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,6 +32,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class ApprovedStoryPreparationTest {
     private final String user = System.getenv("FORGEFLOW_DB_USER"), password = System.getenv("FORGEFLOW_DB_PASSWORD");
     private final UUID repo = UUID.randomUUID(), epic = UUID.randomUUID(), story = UUID.randomUUID();
+    private final Instant now = Instant.parse("2026-10-28T12:00:00Z");
+    private final AtomicLong generatedIds = new AtomicLong();
     private String admin, database;
     private ConfigurableApplicationContext context;
     private JdbcTemplate jdbc;
@@ -39,7 +46,12 @@ class ApprovedStoryPreparationTest {
         String url = admin.substring(0, admin.lastIndexOf('/') + 1) + database + "?currentSchema=preparation_domain";
         try (var c = DriverManager.getConnection(admin, user, password); var sql = c.createStatement()) { sql.execute("create database " + database); }
         DatabaseMigrator.migrate(new DriverManagerDataSource(url, user, password), DatabaseSchemas.fromJdbcUrl(url, "preparation_engine"));
-        context = new SpringApplicationBuilder(ControlPlaneApplication.class).web(WebApplicationType.NONE).run(
+        context = new SpringApplicationBuilder(ControlPlaneApplication.class).web(WebApplicationType.NONE)
+                .initializers(application -> {
+                    application.getBeanFactory().registerSingleton("fixtureClock", Clock.fixed(now, ZoneOffset.UTC));
+                    Supplier<UUID> commandIds = () -> new UUID(0, generatedIds.incrementAndGet());
+                    application.getBeanFactory().registerSingleton("lifecycleCommandIds", commandIds);
+                }).run(
                 "--spring.datasource.url=" + url, "--spring.datasource.username=" + user, "--spring.datasource.password=" + password,
                 "--forgeflow.database.engine-schema=preparation_engine", "--logging.level.root=ERROR");
         jdbc = context.getBean(JdbcTemplate.class);
@@ -80,6 +92,11 @@ class ApprovedStoryPreparationTest {
         assertThat(jdbc.queryForObject("select state from story", String.class)).isEqualTo("ACTIVE");
         assertThat(jdbc.queryForObject("select count(*) from lifecycle_transition", Integer.class)).isEqualTo(4);
         assertThat(jdbc.queryForObject("select count(*) from workflow_run", Integer.class)).isZero();
+        assertThat(generatedIds.get()).isEqualTo(3);
+        assertThat(jdbc.queryForList("select command_id from lifecycle_transition where actor_id like 'approved-preparation:%' order by command_id", UUID.class))
+                .containsExactly(new UUID(0, 1), new UUID(0, 2), new UUID(0, 3));
+        assertThat(jdbc.queryForList("select occurred_at from lifecycle_transition where actor_id like 'approved-preparation:%'", Timestamp.class))
+                .allSatisfy(timestamp -> assertThat(timestamp.toInstant()).isEqualTo(now));
     }
     @Test void callerRollbackRestoresParentsAndAuditTogether() {
         approve();

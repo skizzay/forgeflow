@@ -74,6 +74,12 @@ This internal port starts no engine instance or job and has no HTTP/polling entr
 The later starter (#89) must wrap preparation and engine/domain writes in the
 same outer transaction. Tests verify valid/idempotent preparation, denial and
 outer rollback; the original human approval remains immutable evidence.
+Spring composition injects a shared `Clock` into lifecycle transitions and parent
+preparation, and a `Supplier<UUID>` into preparation for transition command IDs.
+Defaults use UTC system time and random UUIDs; replacement beans can supply a
+clock or the named `lifecycleCommandIds` supplier without changing application
+code. Persistence tests inject fixed time and sequential IDs to verify audit
+values and that an idempotent replay consumes no new IDs.
 
 ## Transition contract
 
