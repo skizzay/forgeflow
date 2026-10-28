@@ -114,7 +114,9 @@ The principal comes from authentication, never JSON. It can operate only on its
 own attempt. A known foreign attempt returns 403 without exposing its state;
 unknown resources return 404. Worker credentials cannot approve plans, cancel
 other work, write SCM bindings or perform human/release operations. Human job
-cancellation is a separate operator command (#68).
+cancellation is a separate operator command (#68). The opt-in
+[manual plan approval command](../architecture/manual-plan-approval.md) has a
+separate human scope and does not create or claim jobs.
 
 The server derives current approval, active parents, dependencies and registered
 activity from trusted records. Workers cannot choose job IDs at claim, workflows,

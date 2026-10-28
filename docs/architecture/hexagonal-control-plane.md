@@ -112,3 +112,13 @@ retain the existing health/webhook/default-deny chain. No request-body identity
 is trusted; CSRF is disabled only on this bearer-only chain. No worker use case,
 lease, provider port or Flowable routing is introduced. See the
 [configuration guide](../user-guide/worker-authentication.md) for settings and limits.
+
+## Manual human approval
+
+The lifecycle hexagon additionally exposes `RecordManualApproval`, backed by
+`ManualApprovalService` and the `ManualApprovalStore` outbound port. A WebFlux
+adapter authenticates the operator and hands the imperative operation to bounded
+elastic threads. `ManualPlan` belongs in `domain.approval`; JDBC evidence storage
+and OAuth2 wiring remain adapters/configuration. The private scoped authority
+does not replace the general deny-unverified lifecycle authority. See
+[manual approval](manual-plan-approval.md) for the transaction and current limits.

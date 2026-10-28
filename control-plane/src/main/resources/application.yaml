@@ -10,6 +10,8 @@ spring:
   main:
     banner-mode: "off"
 forgeflow:
+  manual-approval:
+    enabled: false
   worker:
     enabled: ${FORGEFLOW_WORKER_ENABLED:false}
     id: ${FORGEFLOW_WORKER_ID:}
