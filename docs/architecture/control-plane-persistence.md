@@ -75,6 +75,29 @@ No job update implicitly marks a story merged. #14 owns guarded domain transitio
 #9/#15 own lease/fencing/recovery policy, and #8 owns verified inbox ingestion.
 Schema states are a constrained initial vocabulary, not those completed behaviors.
 
+## Execution intent persistence
+
+The `execution` feature provides the framework-free `ExecutionRun` correlation
+value and `ExecutionStore` outbound port, implemented by `JdbcExecutionStore`
+(#95). It has no use-case entry point or Spring bean wiring yet. It starts no
+Flowable process and changes no parent lifecycle state.
+
+The adapter copies exact immutable manual-approval and registered-definition pins,
+including the original approver and approval timestamp, into a run. Initial job
+intent is bound to the run/process/definition tuple and a registered activity,
+with the unique key `initial:<run UUID>`. Lookup returns only matching pins with
+a complete initial-job correlation; conflicting or partial records fail closed.
+Duplicate writes are command conflicts; other database failures are reported as
+storage unavailable without exposing SQL through the port.
+
+This storage port is not approval authority. Its caller must verify current
+approval through `PrepareApprovedStory`, hold root-to-leaf parent locks and invoke
+all writes inside the same outer transaction as engine startup. The adapter joins
+the caller's transaction. The starter, runtime delegate and complete engine/domain
+atomicity verification remain #89; repository-specific workflow selection remains
+#93. PostgreSQL tests verify exact stored pins, reload, mismatch rejection,
+uniqueness and rollback of run/job together, without claiming engine dispatch.
+
 ## Optional approved-workflow registration
 
 `forgeflow.execution.enabled` defaults to false. When enabled, startup additionally
