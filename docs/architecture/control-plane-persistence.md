@@ -53,6 +53,11 @@ There are no cross-schema foreign keys
 into engine internals; engine IDs are opaque correlation values. The registry
 uses a composite foreign key so a run's key/version cannot name another engine definition.
 
+A run is unique for its `(story_id, approval_id)` pair. PostgreSQL rejects a
+second run even when its run and engine-instance IDs differ; a new approval ID
+is a different identity. This is database protection, not an enqueue operation
+or permission to retry work. The bootstrap PostgreSQL test verifies both cases.
+
 Starting a workflow and storing its domain correlation must use the same Spring
 transaction. A PostgreSQL-backed rollback test demonstrates both writes roll back
 together. Bootstrap registration is serialized with a transaction-scoped advisory
