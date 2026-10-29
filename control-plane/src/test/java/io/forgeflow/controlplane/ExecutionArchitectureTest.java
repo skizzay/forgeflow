@@ -12,7 +12,7 @@ class ExecutionArchitectureTest {
         var feature = new ClassFileImporter().withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
                 .importPackages("io.forgeflow.controlplane.execution");
         classes().that().resideInAnyPackage("..execution.domain..", "..execution.application..")
-                .should().onlyDependOnClassesThat().resideInAnyPackage("java..", "..execution.domain..", "..execution.application..", "..lifecycle.domain..")
+                .should().onlyDependOnClassesThat().resideInAnyPackage("java..", "..execution.domain..", "..execution.application..", "..lifecycle.application.port..", "..lifecycle.domain..")
                 .check(feature);
         classes().that().resideInAPackage("..execution.domain..").should().onlyDependOnClassesThat()
                 .resideInAnyPackage("java..", "..execution.domain..").check(feature);
@@ -20,5 +20,7 @@ class ExecutionArchitectureTest {
                 .resideInAnyPackage("java..", "..execution.domain..", "..execution.application.port..", "..lifecycle.domain..").check(feature);
         noClasses().that().resideInAPackage("..execution.adapter..")
                 .should().dependOnClassesThat().resideInAnyPackage("..execution.configuration..", "..execution.application").check(feature);
+        noClasses().that().resideInAPackage("..execution.adapter.in..").should().dependOnClassesThat()
+                .resideInAPackage("..execution.adapter.out..").check(feature);
     }
 }
