@@ -6,6 +6,8 @@ Architecture: Spring Boot orchestrator + PostgreSQL; Java polling worker; isolat
 
 For every change: read relevant architecture and roadmap documents; link the GitHub issue; identify dependencies; implement the smallest coherent change; add/update tests; document verification and tradeoffs in the PR.
 
+When creating a PR, request a review from @copilot using GitHub’s reviewer-request mechanism. For draft PRs, request the review when marking them ready. Verify the request was accepted; if unavailable or rejected, report that explicitly. Copilot review does not replace required human approval.
+
 Never bypass human epic approval or final epic-to-main approval. Never auto-merge on an agent's assertion alone. Never treat a story dependency as satisfied until its PR has merged into the epic branch. Never expose Docker host socket to an untrusted development container. Escalate uncertain review feedback; cap remediation attempts.
 
 Favor deterministic scheduling and state transitions over AI-generated control decisions. Design retries for idempotency and recovery.
