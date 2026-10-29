@@ -110,6 +110,7 @@ or TLS setup. See [architecture](../architecture/manual-plan-approval.md) for
 transaction, authority and Flowable boundaries.
 
 The internal `PrepareApprovedStory` Java port can prepare approved parent state
-for a later starter; it has no consumer endpoint and creates no workflow/job.
+for the approved starter; it has no consumer endpoint and creates no workflow/job.
 Its transaction joins an outer starter transaction when present. Automatic
-execution remains unimplemented; see the [lifecycle guide](../architecture/lifecycle-states.md).
+dispatch remains unimplemented; the opt-in trusted Java starter can
+create one approved run/job atomically. See the [persistence guide](../architecture/control-plane-persistence.md#approved-execution-startup).

@@ -79,8 +79,8 @@ Schema states are a constrained initial vocabulary, not those completed behavior
 
 The `execution` feature provides the framework-free `ExecutionRun` correlation
 value and `ExecutionStore` outbound port, implemented by `JdbcExecutionStore`
-(#95). It has no use-case entry point or Spring bean wiring yet. It starts no
-Flowable process and changes no parent lifecycle state.
+(#95). Storage itself starts no Flowable process or parent lifecycle transition;
+Spring composition wires it into the approved starter and initial-activity handler.
 
 The adapter copies exact immutable manual-approval and registered-definition pins,
 including the original approver and approval timestamp, into a run. Initial job
@@ -93,26 +93,53 @@ storage unavailable without exposing SQL through the port.
 This storage port is not approval authority. Its caller must verify current
 approval through `PrepareApprovedStory`, hold root-to-leaf parent locks and invoke
 all writes inside the same outer transaction as engine startup. The adapter joins
-the caller's transaction. The starter, runtime delegate and complete engine/domain
-atomicity verification remain #89; repository-specific workflow selection remains
-#93. PostgreSQL tests verify exact stored pins, reload, mismatch rejection,
-uniqueness and rollback of run/job together, without claiming engine dispatch.
+the caller's transaction. The approved starter below supplies that boundary;
+repository-specific workflow selection remains #93. PostgreSQL tests verify exact
+stored pins, reload, mismatch rejection, uniqueness and rollback of run/job together, without claiming engine dispatch.
 
-## Optional approved-workflow registration
+## Approved execution startup
 
-`forgeflow.execution.enabled` defaults to false. When enabled, startup additionally
-registers packaged `approved-story` v1 and `develop-story` v1 with input/output
-contracts v1. Existing content and contract mismatches fail startup; restart does
-not redeploy or overwrite them. Registration creates no process or job. The
-BPMN declares initial dispatch followed by `awaitOutcome`, but its runtime delegate
-binding and approved starter are pending #89. Starting it is not a supported
-operation in this registration-only slice (#87).
+`forgeflow.execution.enabled` defaults to false. When enabled, startup registers
+packaged `approved-story` v1 / `develop-story` v1 and exposes the trusted Java
+`StartApprovedExecution` port (#89). Registration alone starts no process or job.
+Content/contract mismatches still fail startup; restart never overwrites a definition.
+This single-workflow scope does not implement repository-specific selection (#93).
+
+`ApprovedExecutionService` joins `PrepareApprovedStory` inside one outer imperative
+transaction, retaining root-to-leaf locks until commit. Preparation verifies current
+and immutable approval and activates the matching parents through lifecycle guards.
+An existing pinned run returns its stored correlation without another engine start.
+Otherwise, an injected UUID supplier allocates run/process/job identities, the store
+copies the approved pins, and the Flowable adapter starts that exact definition.
+
+BPMN invokes `ApprovedActivityDelegate` through the engine's explicit bean allowlist.
+The delegate calls `QueueInitialActivity`; `InitialActivityService` persists the
+initial PENDING `develop-story` v1 job in the same transaction. BPMN then enters
+`awaitOutcome`. Neither the starter nor worker transport is a Java activity router.
+The core depends on lifecycle ports, never its adapters; Spring configuration wires
+JDBC, transaction and Flowable implementations. Engine types stay in adapters.
 
 ```mermaid
 flowchart LR
-    Start --> Queue["develop-story: runtime binding pending"]
-    Queue --> Wait["awaitOutcome"]
+    Caller[Trusted Java caller] --> TX
+    subgraph TX[One Spring transaction]
+        Prepare[Verify approval and prepare parents] --> Existing{Run exists?}
+        Existing -->|Yes| Replay[Return stored correlation]
+        Existing -->|No| Run[Persist pinned run]
+        Run --> Engine[Start exact Flowable definition]
+        Engine --> Queue[BPMN queues initial job]
+        Queue --> Wait[Durable awaitOutcome]
+    end
+    TX --> Commit[Commit together or roll back together]
 ```
+
+PostgreSQL tests verify concurrent starts yield one run/job/process, restart replay,
+revoked/mismatched approval denial, and rollback of parent states, audit, run, job
+and engine records during dispatch and after engine startup. Runtime remains opt-in
+and has no start HTTP endpoint, inbox trigger (#84), worker execution or publication.
+Future WebFlux callers must execute the entire imperative operation off event-loop
+threads. A returned correlation inside a larger transaction is acknowledged only
+after its caller commits. Worker completion/progression remains separate work.
 
 ## Schema initialization
 
