@@ -49,6 +49,12 @@ class WorkflowReferenceTest {
                 assertThat(process.getFlowElement(flow.getSourceRef())).isInstanceOf(FlowNode.class);
                 assertThat(process.getFlowElement(flow.getTargetRef())).isInstanceOf(FlowNode.class);
                 assertThat(model.getFlowLocationGraphicInfo(flow.getId())).as("BPMN edge for %s", flow.getId()).hasSizeGreaterThanOrEqualTo(2);
+                var points = model.getFlowLocationGraphicInfo(flow.getId());
+                for (int i = 1; i < points.size(); i++) {
+                    var before = points.get(i - 1);
+                    var after = points.get(i);
+                    assertThat(before.getX() == after.getX() || before.getY() == after.getY()).as("Orthogonal connector %s", flow.getId()).isTrue();
+                }
                 bpmnEdges.add(edge(flow.getSourceRef(), flow.getName(), flow.getTargetRef()));
             }
         }

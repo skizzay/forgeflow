@@ -7,12 +7,31 @@ Tracks [#100](https://github.com/skizzay/forgeflow/issues/100).
 processes have `isExecutable="false"`; the file lives outside runtime resources
 and is never registered by ForgeFlow. Tasks, decisions and call outcomes describe
 required responsibilities, not implemented delegates, expressions or IO mappings.
-The embedded BPMN diagram coordinates are a basic layout, not a polished rendering.
+The BPMN includes a routed layout with orthogonal connectors and explicit labels.
+It contains three diagrams; viewers that open only the first show epic coordination.
+Select the story or review process diagram to inspect the other two views.
+BPMN colors use the common bpmn.io `bioc` extension; viewers without color support
+can still display the standard shapes and labels.
 
 The Mermaid views below use the same node IDs, edge labels and sequence flows as
 the BPMN processes. A call activity invokes the named reference process; it does
 not create another unrelated ticket process. The review/merge process is shared
 by story-to-epic and epic-to-main PRs, with their distinct human approval bindings.
+
+## Actor colors
+
+| Color | Meaning |
+|---|---|
+| Purple | Work delegated to an agent: planning, implementation/testing, remediation and architecture assessment |
+| Amber | Human approval or intervention, including waits for authenticated human decisions |
+| Gray | Deterministic automation, routing, event waits and state; call activities expand into mixed actors |
+
+Purple identifies delegated work; dispatch, validation, attempt counters and policy
+guards remain deterministic automation. Requesting a Copilot review is a gray API
+action: Copilot performs the review externally and its completed-review webhook
+resumes the gray observation wait. Amber approval waits consume authenticated
+human commands; their waiting/correlation mechanism is still automated.
+The labels and BPMN shapes remain meaningful when colors are unavailable.
 
 ## Epic coordination
 
@@ -58,6 +77,12 @@ flowchart TD
     epicResult -->|"verified authorized merge"| epicComplete
     epicResult -->|"closed or held"| epicHold
     epicHold --> epicHeld
+    classDef agent fill:#ede9fe,stroke:#6d28d9,color:#111827,stroke-width:2px;
+    classDef human fill:#fef3c7,stroke:#92400e,color:#111827,stroke-width:2px;
+    classDef automated fill:#f1f5f9,stroke:#475569,color:#111827;
+    class planWork,verifyEpic agent;
+    class awaitPlanApproval,epicHold human;
+    class awaitDependency,deliverStory,epicChecks,epicComplete,epicHeld,epicResult,planDecision,prepareEpic,publishEpicPR,reviewEpic,selectStory,storyEligibility,storyResult,ticketReceived automated;
 ```
 
 ## Story delivery
@@ -83,6 +108,12 @@ flowchart TD
     publishStoryPR --> reviewStory
     reviewStory -->|"merged or closed or held"| storyFinished
     storyHold --> storyHeld
+    classDef agent fill:#ede9fe,stroke:#6d28d9,color:#111827,stroke-width:2px;
+    classDef human fill:#fef3c7,stroke:#92400e,color:#111827,stroke-width:2px;
+    classDef automated fill:#f1f5f9,stroke:#475569,color:#111827;
+    class dispatchImplementation agent;
+    class storyHold human;
+    class awaitImplementation,implementationResult,prepareStoryBranch,publishStoryPR,reviewStory,storyFinished,storyHeld,storyStart automated;
 ```
 
 ## Repository review and merge
@@ -129,6 +160,12 @@ flowchart TD
     reviewDecision -->|"verified closed without merge"| reviewClosed
     reviewDecision -->|"ambiguous or exhausted budget or revoked approval"| reviewHold
     reviewHold --> reviewHeld
+    classDef agent fill:#ede9fe,stroke:#6d28d9,color:#111827,stroke-width:2px;
+    classDef human fill:#fef3c7,stroke:#92400e,color:#111827,stroke-width:2px;
+    classDef automated fill:#f1f5f9,stroke:#475569,color:#111827;
+    class dispatchRemediation agent;
+    class awaitMergeApproval,reviewHold human;
+    class awaitRemediation,awaitReviewEvent,inspectReview,mergeGuards,publishRemediation,remediationResult,requestMerge,requestReview,revalidateMerge,reviewClosed,reviewDecision,reviewHeld,reviewMerged,reviewStart automated;
 ```
 
 ## Events, authority and recovery
@@ -185,7 +222,9 @@ docker compose -p forgeflow-reference-check down --volumes --remove-orphans
 ```
 
 The check validates BPMN XML against Flowable's bundled BPMN schema, resolves
-sequence/call references, checks diagram coverage, and compares Mermaid nodes,
+sequence/call references, checks diagram coverage and orthogonal connectors, and compares Mermaid nodes,
 labels and edges. Mermaid syntax is also parsed during this change's verification.
-These checks establish document consistency, not executable process behavior or
-visual readability in every BPMN editor. No reference process is deployed.
+All three BPMN diagrams were also rendered in bpmn-js without import warnings,
+and the actor colors were checked in that viewer. Layout and color support can
+vary across editors; diagram selection and zoom may be needed. These checks do
+not establish executable process behavior. No reference process is deployed.
