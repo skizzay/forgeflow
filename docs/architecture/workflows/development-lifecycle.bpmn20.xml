@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" targetNamespace="https://forgeflow.io/reference">
+  <!-- Proposed non-executable reference for issue #100. No handlers, deployment or runtime authorization. See ../workflow-reference.md. -->
+  <message id="newTicket" name="Verified new ticket"/>
+  <message id="humanDecision" name="Authenticated human decision"/>
+  <message id="processObservation" name="Verified correlated repository ticket or reconciliation observation"/>
+  <message id="workerOutcome" name="Accepted fenced worker outcome"/>
+  <process id="epicCoordinationReference" name="Epic coordination" isExecutable="false">
+    <startEvent id="ticketReceived" name="Verified new-ticket webhook"><messageEventDefinition messageRef="newTicket"/></startEvent>
+    <task id="planWork" name="Read ticket and draft validated plan"/>
+    <receiveTask id="awaitPlanApproval" name="Wait for explicit human plan decision" messageRef="humanDecision"/>
+    <exclusiveGateway id="planDecision" name="Plan approved?"/>
+    <task id="prepareEpic" name="Prepare epic branch from approved main"/>
+    <task id="selectStory" name="Select dependency-ready story"/>
+    <exclusiveGateway id="storyEligibility" name="Story eligibility?"/>
+    <receiveTask id="awaitDependency" name="Wait for ticket or verified dependency merge" messageRef="processObservation"/>
+    <callActivity id="deliverStory" name="Deliver one approved story" calledElement="storyDeliveryReference"/>
+    <exclusiveGateway id="storyResult" name="Story result?"/>
+    <task id="verifyEpic" name="Verify epic acceptance and architecture"/>
+    <exclusiveGateway id="epicChecks" name="Epic checks passed?"/>
+    <task id="publishEpicPR" name="Publish epic-to-main PR"/>
+    <callActivity id="reviewEpic" name="Review epic PR and obtain final human merge approval" calledElement="reviewMergeReference"/>
+    <exclusiveGateway id="epicResult" name="Final PR result?"/>
+    <endEvent id="epicComplete" name="Verified epic-to-main merge"/>
+    <task id="epicHold" name="Hold and escalate to human"/>
+    <endEvent id="epicHeld" name="Held; no automatic continuation"/>
+    <sequenceFlow id="epicCoordinationReference_flow_0" sourceRef="ticketReceived" targetRef="planWork" name=""/>
+    <sequenceFlow id="epicCoordinationReference_flow_1" sourceRef="planWork" targetRef="awaitPlanApproval" name=""/>
+    <sequenceFlow id="epicCoordinationReference_flow_2" sourceRef="awaitPlanApproval" targetRef="planDecision" name=""/>
+    <sequenceFlow id="epicCoordinationReference_flow_3" sourceRef="planDecision" targetRef="prepareEpic" name="approved exact plan"/>
+    <sequenceFlow id="epicCoordinationReference_flow_4" sourceRef="planDecision" targetRef="epicHold" name="rejected or uncertain"/>
+    <sequenceFlow id="epicCoordinationReference_flow_5" sourceRef="prepareEpic" targetRef="selectStory" name=""/>
+    <sequenceFlow id="epicCoordinationReference_flow_6" sourceRef="selectStory" targetRef="storyEligibility" name=""/>
+    <sequenceFlow id="epicCoordinationReference_flow_7" sourceRef="storyEligibility" targetRef="deliverStory" name="ready and currently approved"/>
+    <sequenceFlow id="epicCoordinationReference_flow_8" sourceRef="storyEligibility" targetRef="awaitDependency" name="blocked"/>
+    <sequenceFlow id="epicCoordinationReference_flow_9" sourceRef="awaitDependency" targetRef="selectStory" name="re-evaluate current facts"/>
+    <sequenceFlow id="epicCoordinationReference_flow_10" sourceRef="storyEligibility" targetRef="verifyEpic" name="all children verified merged"/>
+    <sequenceFlow id="epicCoordinationReference_flow_11" sourceRef="deliverStory" targetRef="storyResult" name=""/>
+    <sequenceFlow id="epicCoordinationReference_flow_12" sourceRef="storyResult" targetRef="selectStory" name="verified merged; unlock dependents"/>
+    <sequenceFlow id="epicCoordinationReference_flow_13" sourceRef="storyResult" targetRef="epicHold" name="closed or held"/>
+    <sequenceFlow id="epicCoordinationReference_flow_14" sourceRef="verifyEpic" targetRef="epicChecks" name=""/>
+    <sequenceFlow id="epicCoordinationReference_flow_15" sourceRef="epicChecks" targetRef="publishEpicPR" name="passed"/>
+    <sequenceFlow id="epicCoordinationReference_flow_16" sourceRef="epicChecks" targetRef="epicHold" name="failed or unknown"/>
+    <sequenceFlow id="epicCoordinationReference_flow_17" sourceRef="publishEpicPR" targetRef="reviewEpic" name=""/>
+    <sequenceFlow id="epicCoordinationReference_flow_18" sourceRef="reviewEpic" targetRef="epicResult" name=""/>
+    <sequenceFlow id="epicCoordinationReference_flow_19" sourceRef="epicResult" targetRef="epicComplete" name="verified authorized merge"/>
+    <sequenceFlow id="epicCoordinationReference_flow_20" sourceRef="epicResult" targetRef="epicHold" name="closed or held"/>
+    <sequenceFlow id="epicCoordinationReference_flow_21" sourceRef="epicHold" targetRef="epicHeld" name=""/>
+  </process>
+  <process id="storyDeliveryReference" name="Story delivery" isExecutable="false">
+    <startEvent id="storyStart" name="Approved eligible story"/>
+    <task id="prepareStoryBranch" name="Prepare fresh story branch from epic"/>
+    <task id="dispatchImplementation" name="Dispatch isolated coding and testing"/>
+    <receiveTask id="awaitImplementation" name="Wait for accepted fenced worker outcome" messageRef="workerOutcome"/>
+    <exclusiveGateway id="implementationResult" name="Verified tests passed?"/>
+    <task id="publishStoryPR" name="Publish tested story PR targeting epic"/>
+    <callActivity id="reviewStory" name="Review story PR and obtain human merge approval" calledElement="reviewMergeReference"/>
+    <endEvent id="storyFinished" name="Return verified review outcome to epic"/>
+    <task id="storyHold" name="Hold and escalate to human"/>
+    <endEvent id="storyHeld" name="Return held outcome"/>
+    <sequenceFlow id="storyDeliveryReference_flow_0" sourceRef="storyStart" targetRef="prepareStoryBranch" name=""/>
+    <sequenceFlow id="storyDeliveryReference_flow_1" sourceRef="prepareStoryBranch" targetRef="dispatchImplementation" name=""/>
+    <sequenceFlow id="storyDeliveryReference_flow_2" sourceRef="dispatchImplementation" targetRef="awaitImplementation" name=""/>
+    <sequenceFlow id="storyDeliveryReference_flow_3" sourceRef="awaitImplementation" targetRef="implementationResult" name=""/>
+    <sequenceFlow id="storyDeliveryReference_flow_4" sourceRef="implementationResult" targetRef="publishStoryPR" name="passed for exact tested head"/>
+    <sequenceFlow id="storyDeliveryReference_flow_5" sourceRef="implementationResult" targetRef="storyHold" name="failed or uncertain"/>
+    <sequenceFlow id="storyDeliveryReference_flow_6" sourceRef="publishStoryPR" targetRef="reviewStory" name=""/>
+    <sequenceFlow id="storyDeliveryReference_flow_7" sourceRef="reviewStory" targetRef="storyFinished" name="merged or closed or held"/>
+    <sequenceFlow id="storyDeliveryReference_flow_8" sourceRef="storyHold" targetRef="storyHeld" name=""/>
+  </process>
+  <process id="reviewMergeReference" name="Repository review and merge" isExecutable="false">
+    <startEvent id="reviewStart" name="Bound story or epic PR"/>
+    <task id="requestReview" name="Request Copilot or configured reviewer for current head"/>
+    <receiveTask id="awaitReviewEvent" name="Wait for verified correlated observation" messageRef="processObservation"/>
+    <task id="inspectReview" name="Read authoritative review checks head closure and approval"/>
+    <exclusiveGateway id="reviewDecision" name="Verified review outcome?"/>
+    <task id="dispatchRemediation" name="Increment attempt budget and dispatch remediation with tests"/>
+    <receiveTask id="awaitRemediation" name="Wait for accepted fenced remediation outcome" messageRef="workerOutcome"/>
+    <exclusiveGateway id="remediationResult" name="Verified remediation tests passed?"/>
+    <task id="publishRemediation" name="Publish tested new head; invalidate stale approvals"/>
+    <receiveTask id="awaitMergeApproval" name="Wait for explicit human approval of exact PR base and head" messageRef="humanDecision"/>
+    <task id="revalidateMerge" name="Revalidate human authority checks and exact binding"/>
+    <exclusiveGateway id="mergeGuards" name="Merge guards satisfied?"/>
+    <task id="requestMerge" name="Request merge through repository port"/>
+    <endEvent id="reviewMerged" name="Return verified authorized merged outcome"/>
+    <endEvent id="reviewClosed" name="Return closed-without-merge outcome"/>
+    <task id="reviewHold" name="Hold and escalate; reconcile uncertain effects"/>
+    <endEvent id="reviewHeld" name="Return held outcome"/>
+    <sequenceFlow id="reviewMergeReference_flow_0" sourceRef="reviewStart" targetRef="requestReview" name=""/>
+    <sequenceFlow id="reviewMergeReference_flow_1" sourceRef="requestReview" targetRef="awaitReviewEvent" name=""/>
+    <sequenceFlow id="reviewMergeReference_flow_2" sourceRef="awaitReviewEvent" targetRef="inspectReview" name="webhook or trusted reconciliation observation"/>
+    <sequenceFlow id="reviewMergeReference_flow_3" sourceRef="inspectReview" targetRef="reviewDecision" name=""/>
+    <sequenceFlow id="reviewMergeReference_flow_4" sourceRef="reviewDecision" targetRef="awaitReviewEvent" name="incomplete review or checks; comment alone"/>
+    <sequenceFlow id="reviewMergeReference_flow_5" sourceRef="reviewDecision" targetRef="requestReview" name="head changed; fresh review needed"/>
+    <sequenceFlow id="reviewMergeReference_flow_6" sourceRef="reviewDecision" targetRef="dispatchRemediation" name="completed review; actionable; authorized; attempts below 2"/>
+    <sequenceFlow id="reviewMergeReference_flow_7" sourceRef="dispatchRemediation" targetRef="awaitRemediation" name=""/>
+    <sequenceFlow id="reviewMergeReference_flow_8" sourceRef="awaitRemediation" targetRef="remediationResult" name=""/>
+    <sequenceFlow id="reviewMergeReference_flow_9" sourceRef="remediationResult" targetRef="publishRemediation" name="passed"/>
+    <sequenceFlow id="reviewMergeReference_flow_10" sourceRef="remediationResult" targetRef="reviewHold" name="failed or uncertain"/>
+    <sequenceFlow id="reviewMergeReference_flow_11" sourceRef="publishRemediation" targetRef="requestReview" name="request re-review; retain attempt count"/>
+    <sequenceFlow id="reviewMergeReference_flow_12" sourceRef="reviewDecision" targetRef="awaitMergeApproval" name="current-head review and required checks pass"/>
+    <sequenceFlow id="reviewMergeReference_flow_13" sourceRef="awaitMergeApproval" targetRef="revalidateMerge" name="authenticated human command"/>
+    <sequenceFlow id="reviewMergeReference_flow_14" sourceRef="revalidateMerge" targetRef="mergeGuards" name=""/>
+    <sequenceFlow id="reviewMergeReference_flow_15" sourceRef="mergeGuards" targetRef="requestMerge" name="authorized exact base and head"/>
+    <sequenceFlow id="reviewMergeReference_flow_16" sourceRef="mergeGuards" targetRef="requestReview" name="head changed; approval stale"/>
+    <sequenceFlow id="reviewMergeReference_flow_17" sourceRef="mergeGuards" targetRef="reviewHold" name="revoked or unsupported or uncertain"/>
+    <sequenceFlow id="reviewMergeReference_flow_18" sourceRef="requestMerge" targetRef="awaitReviewEvent" name="await or reconcile provider closure"/>
+    <sequenceFlow id="reviewMergeReference_flow_19" sourceRef="reviewDecision" targetRef="reviewMerged" name="verified authorized merge with exact binding"/>
+    <sequenceFlow id="reviewMergeReference_flow_20" sourceRef="reviewDecision" targetRef="reviewClosed" name="verified closed without merge"/>
+    <sequenceFlow id="reviewMergeReference_flow_21" sourceRef="reviewDecision" targetRef="reviewHold" name="ambiguous or exhausted budget or revoked approval"/>
+    <sequenceFlow id="reviewMergeReference_flow_22" sourceRef="reviewHold" targetRef="reviewHeld" name=""/>
+  </process>
+  <bpmndi:BPMNDiagram id="epicCoordinationReference_diagram"><bpmndi:BPMNPlane id="epicCoordinationReference_plane" bpmnElement="epicCoordinationReference">
+    <bpmndi:BPMNShape id="ticketReceived_shape" bpmnElement="ticketReceived"><dc:Bounds x="80" y="60" width="50" height="50"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="planWork_shape" bpmnElement="planWork"><dc:Bounds x="80" y="210" width="270" height="80"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="awaitPlanApproval_shape" bpmnElement="awaitPlanApproval"><dc:Bounds x="80" y="360" width="270" height="80"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="planDecision_shape" bpmnElement="planDecision"><dc:Bounds x="80" y="510" width="50" height="50"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="prepareEpic_shape" bpmnElement="prepareEpic"><dc:Bounds x="80" y="660" width="270" height="80"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="selectStory_shape" bpmnElement="selectStory"><dc:Bounds x="80" y="810" width="270" height="80"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="storyEligibility_shape" bpmnElement="storyEligibility"><dc:Bounds x="500" y="60" width="50" height="50"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="awaitDependency_shape" bpmnElement="awaitDependency"><dc:Bounds x="500" y="210" width="270" height="80"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="deliverStory_shape" bpmnElement="deliverStory"><dc:Bounds x="500" y="360" width="270" height="80"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="storyResult_shape" bpmnElement="storyResult"><dc:Bounds x="500" y="510" width="50" height="50"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="verifyEpic_shape" bpmnElement="verifyEpic"><dc:Bounds x="500" y="660" width="270" height="80"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="epicChecks_shape" bpmnElement="epicChecks"><dc:Bounds x="500" y="810" width="50" height="50"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="publishEpicPR_shape" bpmnElement="publishEpicPR"><dc:Bounds x="920" y="60" width="270" height="80"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="reviewEpic_shape" bpmnElement="reviewEpic"><dc:Bounds x="920" y="210" width="270" height="80"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="epicResult_shape" bpmnElement="epicResult"><dc:Bounds x="920" y="360" width="50" height="50"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="epicComplete_shape" bpmnElement="epicComplete"><dc:Bounds x="920" y="510" width="50" height="50"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="epicHold_shape" bpmnElement="epicHold"><dc:Bounds x="920" y="660" width="270" height="80"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="epicHeld_shape" bpmnElement="epicHeld"><dc:Bounds x="920" y="810" width="50" height="50"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNEdge id="epicCoordinationReference_edge_0" bpmnElement="epicCoordinationReference_flow_0"><di:waypoint x="130" y="110"/><di:waypoint x="80" y="210"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="epicCoordinationReference_edge_1" bpmnElement="epicCoordinationReference_flow_1"><di:waypoint x="130" y="260"/><di:waypoint x="80" y="360"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="epicCoordinationReference_edge_2" bpmnElement="epicCoordinationReference_flow_2"><di:waypoint x="130" y="410"/><di:waypoint x="80" y="510"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="epicCoordinationReference_edge_3" bpmnElement="epicCoordinationReference_flow_3"><di:waypoint x="130" y="560"/><di:waypoint x="80" y="660"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="epicCoordinationReference_edge_4" bpmnElement="epicCoordinationReference_flow_4"><di:waypoint x="130" y="560"/><di:waypoint x="920" y="660"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="epicCoordinationReference_edge_5" bpmnElement="epicCoordinationReference_flow_5"><di:waypoint x="130" y="710"/><di:waypoint x="80" y="810"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="epicCoordinationReference_edge_6" bpmnElement="epicCoordinationReference_flow_6"><di:waypoint x="130" y="860"/><di:waypoint x="500" y="60"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="epicCoordinationReference_edge_7" bpmnElement="epicCoordinationReference_flow_7"><di:waypoint x="550" y="110"/><di:waypoint x="500" y="360"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="epicCoordinationReference_edge_8" bpmnElement="epicCoordinationReference_flow_8"><di:waypoint x="550" y="110"/><di:waypoint x="500" y="210"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="epicCoordinationReference_edge_9" bpmnElement="epicCoordinationReference_flow_9"><di:waypoint x="550" y="260"/><di:waypoint x="80" y="810"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="epicCoordinationReference_edge_10" bpmnElement="epicCoordinationReference_flow_10"><di:waypoint x="550" y="110"/><di:waypoint x="500" y="660"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="epicCoordinationReference_edge_11" bpmnElement="epicCoordinationReference_flow_11"><di:waypoint x="550" y="410"/><di:waypoint x="500" y="510"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="epicCoordinationReference_edge_12" bpmnElement="epicCoordinationReference_flow_12"><di:waypoint x="550" y="560"/><di:waypoint x="80" y="810"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="epicCoordinationReference_edge_13" bpmnElement="epicCoordinationReference_flow_13"><di:waypoint x="550" y="560"/><di:waypoint x="920" y="660"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="epicCoordinationReference_edge_14" bpmnElement="epicCoordinationReference_flow_14"><di:waypoint x="550" y="710"/><di:waypoint x="500" y="810"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="epicCoordinationReference_edge_15" bpmnElement="epicCoordinationReference_flow_15"><di:waypoint x="550" y="860"/><di:waypoint x="920" y="60"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="epicCoordinationReference_edge_16" bpmnElement="epicCoordinationReference_flow_16"><di:waypoint x="550" y="860"/><di:waypoint x="920" y="660"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="epicCoordinationReference_edge_17" bpmnElement="epicCoordinationReference_flow_17"><di:waypoint x="970" y="110"/><di:waypoint x="920" y="210"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="epicCoordinationReference_edge_18" bpmnElement="epicCoordinationReference_flow_18"><di:waypoint x="970" y="260"/><di:waypoint x="920" y="360"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="epicCoordinationReference_edge_19" bpmnElement="epicCoordinationReference_flow_19"><di:waypoint x="970" y="410"/><di:waypoint x="920" y="510"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="epicCoordinationReference_edge_20" bpmnElement="epicCoordinationReference_flow_20"><di:waypoint x="970" y="410"/><di:waypoint x="920" y="660"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="epicCoordinationReference_edge_21" bpmnElement="epicCoordinationReference_flow_21"><di:waypoint x="970" y="710"/><di:waypoint x="920" y="810"/></bpmndi:BPMNEdge>
+  </bpmndi:BPMNPlane></bpmndi:BPMNDiagram>
+  <bpmndi:BPMNDiagram id="storyDeliveryReference_diagram"><bpmndi:BPMNPlane id="storyDeliveryReference_plane" bpmnElement="storyDeliveryReference">
+    <bpmndi:BPMNShape id="storyStart_shape" bpmnElement="storyStart"><dc:Bounds x="80" y="60" width="50" height="50"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="prepareStoryBranch_shape" bpmnElement="prepareStoryBranch"><dc:Bounds x="80" y="210" width="270" height="80"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="dispatchImplementation_shape" bpmnElement="dispatchImplementation"><dc:Bounds x="80" y="360" width="270" height="80"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="awaitImplementation_shape" bpmnElement="awaitImplementation"><dc:Bounds x="80" y="510" width="270" height="80"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="implementationResult_shape" bpmnElement="implementationResult"><dc:Bounds x="80" y="660" width="50" height="50"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="publishStoryPR_shape" bpmnElement="publishStoryPR"><dc:Bounds x="80" y="810" width="270" height="80"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="reviewStory_shape" bpmnElement="reviewStory"><dc:Bounds x="500" y="60" width="270" height="80"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="storyFinished_shape" bpmnElement="storyFinished"><dc:Bounds x="500" y="210" width="50" height="50"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="storyHold_shape" bpmnElement="storyHold"><dc:Bounds x="500" y="360" width="270" height="80"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="storyHeld_shape" bpmnElement="storyHeld"><dc:Bounds x="500" y="510" width="50" height="50"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNEdge id="storyDeliveryReference_edge_0" bpmnElement="storyDeliveryReference_flow_0"><di:waypoint x="130" y="110"/><di:waypoint x="80" y="210"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="storyDeliveryReference_edge_1" bpmnElement="storyDeliveryReference_flow_1"><di:waypoint x="130" y="260"/><di:waypoint x="80" y="360"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="storyDeliveryReference_edge_2" bpmnElement="storyDeliveryReference_flow_2"><di:waypoint x="130" y="410"/><di:waypoint x="80" y="510"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="storyDeliveryReference_edge_3" bpmnElement="storyDeliveryReference_flow_3"><di:waypoint x="130" y="560"/><di:waypoint x="80" y="660"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="storyDeliveryReference_edge_4" bpmnElement="storyDeliveryReference_flow_4"><di:waypoint x="130" y="710"/><di:waypoint x="80" y="810"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="storyDeliveryReference_edge_5" bpmnElement="storyDeliveryReference_flow_5"><di:waypoint x="130" y="710"/><di:waypoint x="500" y="360"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="storyDeliveryReference_edge_6" bpmnElement="storyDeliveryReference_flow_6"><di:waypoint x="130" y="860"/><di:waypoint x="500" y="60"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="storyDeliveryReference_edge_7" bpmnElement="storyDeliveryReference_flow_7"><di:waypoint x="550" y="110"/><di:waypoint x="500" y="210"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="storyDeliveryReference_edge_8" bpmnElement="storyDeliveryReference_flow_8"><di:waypoint x="550" y="410"/><di:waypoint x="500" y="510"/></bpmndi:BPMNEdge>
+  </bpmndi:BPMNPlane></bpmndi:BPMNDiagram>
+  <bpmndi:BPMNDiagram id="reviewMergeReference_diagram"><bpmndi:BPMNPlane id="reviewMergeReference_plane" bpmnElement="reviewMergeReference">
+    <bpmndi:BPMNShape id="reviewStart_shape" bpmnElement="reviewStart"><dc:Bounds x="80" y="60" width="50" height="50"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="requestReview_shape" bpmnElement="requestReview"><dc:Bounds x="80" y="210" width="270" height="80"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="awaitReviewEvent_shape" bpmnElement="awaitReviewEvent"><dc:Bounds x="80" y="360" width="270" height="80"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="inspectReview_shape" bpmnElement="inspectReview"><dc:Bounds x="80" y="510" width="270" height="80"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="reviewDecision_shape" bpmnElement="reviewDecision"><dc:Bounds x="80" y="660" width="50" height="50"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="dispatchRemediation_shape" bpmnElement="dispatchRemediation"><dc:Bounds x="80" y="810" width="270" height="80"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="awaitRemediation_shape" bpmnElement="awaitRemediation"><dc:Bounds x="500" y="60" width="270" height="80"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="remediationResult_shape" bpmnElement="remediationResult"><dc:Bounds x="500" y="210" width="50" height="50"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="publishRemediation_shape" bpmnElement="publishRemediation"><dc:Bounds x="500" y="360" width="270" height="80"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="awaitMergeApproval_shape" bpmnElement="awaitMergeApproval"><dc:Bounds x="500" y="510" width="270" height="80"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="revalidateMerge_shape" bpmnElement="revalidateMerge"><dc:Bounds x="500" y="660" width="270" height="80"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="mergeGuards_shape" bpmnElement="mergeGuards"><dc:Bounds x="500" y="810" width="50" height="50"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="requestMerge_shape" bpmnElement="requestMerge"><dc:Bounds x="920" y="60" width="270" height="80"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="reviewMerged_shape" bpmnElement="reviewMerged"><dc:Bounds x="920" y="210" width="50" height="50"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="reviewClosed_shape" bpmnElement="reviewClosed"><dc:Bounds x="920" y="360" width="50" height="50"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="reviewHold_shape" bpmnElement="reviewHold"><dc:Bounds x="920" y="510" width="270" height="80"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="reviewHeld_shape" bpmnElement="reviewHeld"><dc:Bounds x="920" y="660" width="50" height="50"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNEdge id="reviewMergeReference_edge_0" bpmnElement="reviewMergeReference_flow_0"><di:waypoint x="130" y="110"/><di:waypoint x="80" y="210"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="reviewMergeReference_edge_1" bpmnElement="reviewMergeReference_flow_1"><di:waypoint x="130" y="260"/><di:waypoint x="80" y="360"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="reviewMergeReference_edge_2" bpmnElement="reviewMergeReference_flow_2"><di:waypoint x="130" y="410"/><di:waypoint x="80" y="510"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="reviewMergeReference_edge_3" bpmnElement="reviewMergeReference_flow_3"><di:waypoint x="130" y="560"/><di:waypoint x="80" y="660"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="reviewMergeReference_edge_4" bpmnElement="reviewMergeReference_flow_4"><di:waypoint x="130" y="710"/><di:waypoint x="80" y="360"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="reviewMergeReference_edge_5" bpmnElement="reviewMergeReference_flow_5"><di:waypoint x="130" y="710"/><di:waypoint x="80" y="210"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="reviewMergeReference_edge_6" bpmnElement="reviewMergeReference_flow_6"><di:waypoint x="130" y="710"/><di:waypoint x="80" y="810"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="reviewMergeReference_edge_7" bpmnElement="reviewMergeReference_flow_7"><di:waypoint x="130" y="860"/><di:waypoint x="500" y="60"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="reviewMergeReference_edge_8" bpmnElement="reviewMergeReference_flow_8"><di:waypoint x="550" y="110"/><di:waypoint x="500" y="210"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="reviewMergeReference_edge_9" bpmnElement="reviewMergeReference_flow_9"><di:waypoint x="550" y="260"/><di:waypoint x="500" y="360"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="reviewMergeReference_edge_10" bpmnElement="reviewMergeReference_flow_10"><di:waypoint x="550" y="260"/><di:waypoint x="920" y="510"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="reviewMergeReference_edge_11" bpmnElement="reviewMergeReference_flow_11"><di:waypoint x="550" y="410"/><di:waypoint x="80" y="210"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="reviewMergeReference_edge_12" bpmnElement="reviewMergeReference_flow_12"><di:waypoint x="130" y="710"/><di:waypoint x="500" y="510"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="reviewMergeReference_edge_13" bpmnElement="reviewMergeReference_flow_13"><di:waypoint x="550" y="560"/><di:waypoint x="500" y="660"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="reviewMergeReference_edge_14" bpmnElement="reviewMergeReference_flow_14"><di:waypoint x="550" y="710"/><di:waypoint x="500" y="810"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="reviewMergeReference_edge_15" bpmnElement="reviewMergeReference_flow_15"><di:waypoint x="550" y="860"/><di:waypoint x="920" y="60"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="reviewMergeReference_edge_16" bpmnElement="reviewMergeReference_flow_16"><di:waypoint x="550" y="860"/><di:waypoint x="80" y="210"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="reviewMergeReference_edge_17" bpmnElement="reviewMergeReference_flow_17"><di:waypoint x="550" y="860"/><di:waypoint x="920" y="510"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="reviewMergeReference_edge_18" bpmnElement="reviewMergeReference_flow_18"><di:waypoint x="970" y="110"/><di:waypoint x="80" y="360"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="reviewMergeReference_edge_19" bpmnElement="reviewMergeReference_flow_19"><di:waypoint x="130" y="710"/><di:waypoint x="920" y="210"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="reviewMergeReference_edge_20" bpmnElement="reviewMergeReference_flow_20"><di:waypoint x="130" y="710"/><di:waypoint x="920" y="360"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="reviewMergeReference_edge_21" bpmnElement="reviewMergeReference_flow_21"><di:waypoint x="130" y="710"/><di:waypoint x="920" y="510"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="reviewMergeReference_edge_22" bpmnElement="reviewMergeReference_flow_22"><di:waypoint x="970" y="560"/><di:waypoint x="920" y="660"/></bpmndi:BPMNEdge>
+  </bpmndi:BPMNPlane></bpmndi:BPMNDiagram>
+</definitions>

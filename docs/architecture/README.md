@@ -19,6 +19,8 @@ The intended stack is Java/Spring Boot with PostgreSQL and a separate Java worke
 - [Worker OAuth2 authentication](../user-guide/worker-authentication.md) — Boot-managed JWT configuration and principal mapping; ForgeFlow is a resource server, not an identity platform.
 - [Worker protocol](../requirements/worker-protocol.md) — proposed API messages, lease ownership and cancellation/recovery diagrams; endpoints are not implemented yet.
 
+- [Development workflow reference](workflow-reference.md) — proposed non-executable BPMN and matching Mermaid views for epic coordination, story delivery and webhook-driven review/merge (#100).
+
 - [Flowable and provider boundaries](workflow-boundaries.md) — target event-driven orchestration, independent ticket/repository inputs, review/remediation/merge loop and worker boundaries; includes implementation-status distinctions. Approved workflow registration and startup are described in [control-plane persistence](control-plane-persistence.md).
 
 - [Configured manual plan approval](manual-plan-approval.md) — human OAuth2 authority, immutable pins and transactional approval/invalidation (#46).

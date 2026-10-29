@@ -33,6 +33,7 @@ to scope source inspection; a repository-wide scan is not the onboarding path.
 | Webhook authentication, inbox and asynchronous processing | [Webhook inbox](docs/architecture/webhook-inbox.md) |
 | Human plan approval, trusted pins and invalidation | [Manual plan approval](docs/architecture/manual-plan-approval.md) |
 | Job/story/epic entities, transitions, approval and recovery guards | [Lifecycle](docs/architecture/lifecycle-states.md) |
+| End-to-end target BPMN, review webhooks and matching Mermaid process views | [Development workflow reference](docs/architecture/workflow-reference.md) — non-executable architecture model |
 | Flowable progression and ticket/repository integration boundaries | [Workflow and provider boundaries](docs/architecture/workflow-boundaries.md) — target design and implementation status |
 | Spring Boot worker OAuth2 settings and principal mapping | [Worker authentication](docs/user-guide/worker-authentication.md) — external identity provider; authentication boundary only |
 | Worker API messages, leases, fencing and cancellation | [Worker protocol](docs/requirements/worker-protocol.md) — proposed contract, not implemented endpoints |
