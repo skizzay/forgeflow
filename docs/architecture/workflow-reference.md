@@ -18,6 +18,30 @@ the BPMN processes. A call activity invokes the named reference process; it does
 not create another unrelated ticket process. The review/merge process is shared
 by story-to-epic and epic-to-main PRs, with their distinct human approval bindings.
 
+## Flowable and IDE compatibility
+
+The model declares `xmlns:flowable="http://flowable.org/bpmn"` to identify its
+intended engine dialect to IDE tooling. This namespace declaration does not make
+it executable. Automated/delegated activities use concrete BPMN `serviceTask`
+elements rather than generic `task` elements; they still have no runtime delegate
+bindings and all processes remain non-executable.
+
+The IntelliJ Flowable BPMN Visualizer's parser supports service tasks but does
+not map generic tasks, which can leave arrows pointing into empty space. Its
+namespace check also warns when the Flowable URI is absent. Its edge renderer
+positions names along the longest connector segment instead of using the explicit
+BPMN label position; names on backward connectors can therefore appear upside
+down. That remaining label behavior is a viewer limitation, not a change to the
+flow direction. Color support also varies by viewer. The Mermaid views retain
+readable, horizontal labels and the actor-color legend.
+
+Compatibility findings are based on the plugin's
+[namespace check](https://github.com/valb3r/flowable-bpmn-intellij-plugin/blob/9323bf251d581f90202e6c9d7ad1808462f149b9/xml-parser-core/src/main/kotlin/com/valb3r/bpmn/intellij/plugin/bpmn/parser/core/BaseBpmnParser.kt),
+[task mappings](https://github.com/valb3r/flowable-bpmn-intellij-plugin/blob/9323bf251d581f90202e6c9d7ad1808462f149b9/flowable-xml-parser/src/main/kotlin/com/valb3r/bpmn/intellij/plugin/flowable/parser/nodes/FlowableXml.kt)
+and [edge renderer](https://github.com/valb3r/flowable-bpmn-intellij-plugin/blob/9323bf251d581f90202e6c9d7ad1808462f149b9/bpmn-intellij-plugin-core/src/main/kotlin/com/valb3r/bpmn/intellij/plugin/core/render/elements/edges/BaseEdgeRenderElement.kt).
+The user's exact plugin/version has not yet been reproduced; schema checks alone
+cannot establish compatibility with every IDE viewer.
+
 ## Actor colors
 
 | Color | Meaning |

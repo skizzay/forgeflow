@@ -1,6 +1,7 @@
 package io.forgeflow.controlplane;
 
 import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
@@ -14,6 +15,7 @@ import org.flowable.bpmn.model.CallActivity;
 import org.flowable.bpmn.model.FlowNode;
 import org.flowable.bpmn.model.SequenceFlow;
 import org.flowable.bpmn.model.StartEvent;
+import org.flowable.bpmn.model.Task;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -22,6 +24,7 @@ class WorkflowReferenceTest {
     @Test void nonExecutableBpmnAndMermaidDescribeTheSameConnectedProcesses() throws Exception {
         Path architecture = Path.of("../docs/architecture");
         byte[] xml = Files.readAllBytes(architecture.resolve("workflows/development-lifecycle.bpmn20.xml"));
+        assertThat(new String(xml, StandardCharsets.UTF_8)).contains("xmlns:flowable=\"http://flowable.org/bpmn\"");
         var converter = new BpmnXMLConverter();
         var model = converter.convertToBpmnModel(() -> new ByteArrayInputStream(xml), true, true);
         var processes = model.getProcesses().stream().map(process -> process.getId()).toList();
@@ -41,6 +44,7 @@ class WorkflowReferenceTest {
             }
             assertThat(reachable).containsExactlyInAnyOrderElementsOf(nodes.stream().map(FlowNode::getId).toList());
             for (var node : nodes) {
+                assertThat(node.getClass()).as("Concrete task type for IDE compatibility: %s", node.getId()).isNotEqualTo(Task.class);
                 assertThat(bpmnNodes.put(node.getId(), node.getName())).isNull();
                 assertThat(model.getGraphicInfo(node.getId())).as("BPMN shape for %s", node.getId()).isNotNull();
                 if (node instanceof CallActivity call) assertThat(processes).contains(call.getCalledElement());

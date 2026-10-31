@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:bioc="http://bpmn.io/schema/bpmn/biocolor/1.0" targetNamespace="https://forgeflow.io/reference">
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:flowable="http://flowable.org/bpmn" xmlns:bioc="http://bpmn.io/schema/bpmn/biocolor/1.0" targetNamespace="https://forgeflow.io/reference">
   <!-- Proposed non-executable reference for issue #100. No handlers, deployment or runtime authorization. See ../workflow-reference.md. -->
   <message id="newTicket" name="Verified new ticket"/>
   <message id="humanDecision" name="Authenticated human decision"/>
@@ -7,22 +7,22 @@
   <message id="workerOutcome" name="Accepted fenced worker outcome"/>
   <process id="epicCoordinationReference" name="Epic coordination" isExecutable="false">
     <startEvent id="ticketReceived" name="Verified new-ticket webhook"><messageEventDefinition messageRef="newTicket"/></startEvent>
-    <task id="planWork" name="Read ticket and draft validated plan"/>
+    <serviceTask id="planWork" name="Read ticket and draft validated plan"/>
     <receiveTask id="awaitPlanApproval" name="Wait for explicit human plan decision" messageRef="humanDecision"/>
     <exclusiveGateway id="planDecision" name="Plan approved?"/>
-    <task id="prepareEpic" name="Prepare epic branch from approved main"/>
-    <task id="selectStory" name="Select dependency-ready story"/>
+    <serviceTask id="prepareEpic" name="Prepare epic branch from approved main"/>
+    <serviceTask id="selectStory" name="Select dependency-ready story"/>
     <exclusiveGateway id="storyEligibility" name="Story eligibility?"/>
     <receiveTask id="awaitDependency" name="Wait for ticket or verified dependency merge" messageRef="processObservation"/>
     <callActivity id="deliverStory" name="Deliver one approved story" calledElement="storyDeliveryReference"/>
     <exclusiveGateway id="storyResult" name="Story result?"/>
-    <task id="verifyEpic" name="Verify epic acceptance and architecture"/>
+    <serviceTask id="verifyEpic" name="Verify epic acceptance and architecture"/>
     <exclusiveGateway id="epicChecks" name="Epic checks passed?"/>
-    <task id="publishEpicPR" name="Publish epic-to-main PR"/>
+    <serviceTask id="publishEpicPR" name="Publish epic-to-main PR"/>
     <callActivity id="reviewEpic" name="Review epic PR and obtain final human merge approval" calledElement="reviewMergeReference"/>
     <exclusiveGateway id="epicResult" name="Final PR result?"/>
     <endEvent id="epicComplete" name="Verified epic-to-main merge"/>
-    <task id="epicHold" name="Hold and escalate to human"/>
+    <serviceTask id="epicHold" name="Hold and escalate to human"/>
     <endEvent id="epicHeld" name="Held; no automatic continuation"/>
     <sequenceFlow id="epicCoordinationReference_flow_0" sourceRef="ticketReceived" targetRef="planWork" name=""/>
     <sequenceFlow id="epicCoordinationReference_flow_1" sourceRef="planWork" targetRef="awaitPlanApproval" name=""/>
@@ -49,14 +49,14 @@
   </process>
   <process id="storyDeliveryReference" name="Story delivery" isExecutable="false">
     <startEvent id="storyStart" name="Approved eligible story"/>
-    <task id="prepareStoryBranch" name="Prepare fresh story branch from epic"/>
-    <task id="dispatchImplementation" name="Dispatch isolated coding and testing"/>
+    <serviceTask id="prepareStoryBranch" name="Prepare fresh story branch from epic"/>
+    <serviceTask id="dispatchImplementation" name="Dispatch isolated coding and testing"/>
     <receiveTask id="awaitImplementation" name="Wait for accepted fenced worker outcome" messageRef="workerOutcome"/>
     <exclusiveGateway id="implementationResult" name="Verified tests passed?"/>
-    <task id="publishStoryPR" name="Publish tested story PR targeting epic"/>
+    <serviceTask id="publishStoryPR" name="Publish tested story PR targeting epic"/>
     <callActivity id="reviewStory" name="Review story PR and obtain human merge approval" calledElement="reviewMergeReference"/>
     <endEvent id="storyFinished" name="Return verified review outcome to epic"/>
-    <task id="storyHold" name="Hold and escalate to human"/>
+    <serviceTask id="storyHold" name="Hold and escalate to human"/>
     <endEvent id="storyHeld" name="Return held outcome"/>
     <sequenceFlow id="storyDeliveryReference_flow_0" sourceRef="storyStart" targetRef="prepareStoryBranch" name=""/>
     <sequenceFlow id="storyDeliveryReference_flow_1" sourceRef="prepareStoryBranch" targetRef="dispatchImplementation" name=""/>
@@ -70,21 +70,21 @@
   </process>
   <process id="reviewMergeReference" name="Repository review and merge" isExecutable="false">
     <startEvent id="reviewStart" name="Bound story or epic PR"/>
-    <task id="requestReview" name="Request Copilot or configured reviewer for current head"/>
+    <serviceTask id="requestReview" name="Request Copilot or configured reviewer for current head"/>
     <receiveTask id="awaitReviewEvent" name="Wait for verified correlated observation" messageRef="processObservation"/>
-    <task id="inspectReview" name="Read authoritative review checks head closure and approval"/>
+    <serviceTask id="inspectReview" name="Read authoritative review checks head closure and approval"/>
     <exclusiveGateway id="reviewDecision" name="Verified review outcome?"/>
-    <task id="dispatchRemediation" name="Increment attempt budget and dispatch remediation with tests"/>
+    <serviceTask id="dispatchRemediation" name="Increment attempt budget and dispatch remediation with tests"/>
     <receiveTask id="awaitRemediation" name="Wait for accepted fenced remediation outcome" messageRef="workerOutcome"/>
     <exclusiveGateway id="remediationResult" name="Verified remediation tests passed?"/>
-    <task id="publishRemediation" name="Publish tested new head; invalidate stale approvals"/>
+    <serviceTask id="publishRemediation" name="Publish tested new head; invalidate stale approvals"/>
     <receiveTask id="awaitMergeApproval" name="Wait for explicit human approval of exact PR base and head" messageRef="humanDecision"/>
-    <task id="revalidateMerge" name="Revalidate human authority checks and exact binding"/>
+    <serviceTask id="revalidateMerge" name="Revalidate human authority checks and exact binding"/>
     <exclusiveGateway id="mergeGuards" name="Merge guards satisfied?"/>
-    <task id="requestMerge" name="Request merge through repository port"/>
+    <serviceTask id="requestMerge" name="Request merge through repository port"/>
     <endEvent id="reviewMerged" name="Return verified authorized merged outcome"/>
     <endEvent id="reviewClosed" name="Return closed-without-merge outcome"/>
-    <task id="reviewHold" name="Hold and escalate; reconcile uncertain effects"/>
+    <serviceTask id="reviewHold" name="Hold and escalate; reconcile uncertain effects"/>
     <endEvent id="reviewHeld" name="Return held outcome"/>
     <sequenceFlow id="reviewMergeReference_flow_0" sourceRef="reviewStart" targetRef="requestReview" name=""/>
     <sequenceFlow id="reviewMergeReference_flow_1" sourceRef="requestReview" targetRef="awaitReviewEvent" name=""/>
