@@ -1,0 +1,254 @@
+# Development workflow reference
+
+Tracks [#100](https://github.com/skizzay/forgeflow/issues/100).
+[Download/open the BPMN model](workflows/development-lifecycle.bpmn20.xml).
+
+**Proposed architecture reference, not an executable workflow.** All three BPMN
+processes have `isExecutable="false"`; the file lives outside runtime resources
+and is never registered by ForgeFlow. Tasks, decisions and call outcomes describe
+required responsibilities, not implemented delegates, expressions or IO mappings.
+The BPMN includes a routed layout with orthogonal connectors and explicit labels.
+It contains three diagrams; viewers that open only the first show epic coordination.
+Select the story or review process diagram to inspect the other two views.
+BPMN colors use the common bpmn.io `bioc` extension; viewers without color support
+can still display the standard shapes and labels.
+
+The Mermaid views below use the same node IDs, edge labels and sequence flows as
+the BPMN processes. A call activity invokes the named reference process; it does
+not create another unrelated ticket process. The review/merge process is shared
+by story-to-epic and epic-to-main PRs, with their distinct human approval bindings.
+
+## Flowable and IDE compatibility
+
+The model declares `xmlns:flowable="http://flowable.org/bpmn"` to identify its
+intended engine dialect to IDE tooling. This namespace declaration does not make
+it executable. Automated/delegated activities use concrete BPMN `serviceTask`
+elements rather than generic `task` elements; they still have no runtime delegate
+bindings and all processes remain non-executable.
+
+The IntelliJ Flowable BPMN Visualizer's parser supports service tasks but does
+not map generic tasks, which can leave arrows pointing into empty space. Its
+namespace check also warns when the Flowable URI is absent. Its edge renderer
+positions names along the longest connector segment instead of using the explicit
+BPMN label position; names on backward connectors can therefore appear upside
+down. That remaining label behavior is a viewer limitation, not a change to the
+flow direction. Color support also varies by viewer. The Mermaid views retain
+readable, horizontal labels and the actor-color legend.
+
+Compatibility findings are based on the plugin's
+[namespace check](https://github.com/valb3r/flowable-bpmn-intellij-plugin/blob/9323bf251d581f90202e6c9d7ad1808462f149b9/xml-parser-core/src/main/kotlin/com/valb3r/bpmn/intellij/plugin/bpmn/parser/core/BaseBpmnParser.kt),
+[task mappings](https://github.com/valb3r/flowable-bpmn-intellij-plugin/blob/9323bf251d581f90202e6c9d7ad1808462f149b9/flowable-xml-parser/src/main/kotlin/com/valb3r/bpmn/intellij/plugin/flowable/parser/nodes/FlowableXml.kt)
+and [edge renderer](https://github.com/valb3r/flowable-bpmn-intellij-plugin/blob/9323bf251d581f90202e6c9d7ad1808462f149b9/bpmn-intellij-plugin-core/src/main/kotlin/com/valb3r/bpmn/intellij/plugin/core/render/elements/edges/BaseEdgeRenderElement.kt).
+The user's exact plugin/version has not yet been reproduced; schema checks alone
+cannot establish compatibility with every IDE viewer.
+
+## Actor colors
+
+| Color | Meaning |
+|---|---|
+| Purple | Work delegated to an agent: planning, implementation/testing, remediation and architecture assessment |
+| Amber | Human approval or intervention, including waits for authenticated human decisions |
+| Gray | Deterministic automation, routing, event waits and state; call activities expand into mixed actors |
+
+Purple identifies delegated work; dispatch, validation, attempt counters and policy
+guards remain deterministic automation. Requesting a Copilot review is a gray API
+action: Copilot performs the review externally and its completed-review webhook
+resumes the gray observation wait. Amber approval waits consume authenticated
+human commands; their waiting/correlation mechanism is still automated.
+The labels and BPMN shapes remain meaningful when colors are unavailable.
+
+## Epic coordination
+
+```mermaid
+flowchart TD
+    ticketReceived(["Verified new-ticket webhook"])
+    planWork["Read ticket and draft validated plan"]
+    awaitPlanApproval["Wait for explicit human plan decision"]
+    planDecision{"Plan approved?"}
+    prepareEpic["Prepare epic branch from approved main"]
+    selectStory["Select dependency-ready story"]
+    storyEligibility{"Story eligibility?"}
+    awaitDependency["Wait for ticket or verified dependency merge"]
+    deliverStory[["Deliver one approved story"]]
+    storyResult{"Story result?"}
+    verifyEpic["Verify epic acceptance and architecture"]
+    epicChecks{"Epic checks passed?"}
+    publishEpicPR["Publish epic-to-main PR"]
+    reviewEpic[["Review epic PR and obtain final human merge approval"]]
+    epicResult{"Final PR result?"}
+    epicComplete(["Verified epic-to-main merge"])
+    epicHold["Hold and escalate to human"]
+    epicHeld(["Held; no automatic continuation"])
+    ticketReceived --> planWork
+    planWork --> awaitPlanApproval
+    awaitPlanApproval --> planDecision
+    planDecision -->|"approved exact plan"| prepareEpic
+    planDecision -->|"rejected or uncertain"| epicHold
+    prepareEpic --> selectStory
+    selectStory --> storyEligibility
+    storyEligibility -->|"ready and currently approved"| deliverStory
+    storyEligibility -->|"blocked"| awaitDependency
+    awaitDependency -->|"re-evaluate current facts"| selectStory
+    storyEligibility -->|"all children verified merged"| verifyEpic
+    deliverStory --> storyResult
+    storyResult -->|"verified merged; unlock dependents"| selectStory
+    storyResult -->|"closed or held"| epicHold
+    verifyEpic --> epicChecks
+    epicChecks -->|"passed"| publishEpicPR
+    epicChecks -->|"failed or unknown"| epicHold
+    publishEpicPR --> reviewEpic
+    reviewEpic --> epicResult
+    epicResult -->|"verified authorized merge"| epicComplete
+    epicResult -->|"closed or held"| epicHold
+    epicHold --> epicHeld
+    classDef agent fill:#ede9fe,stroke:#6d28d9,color:#111827,stroke-width:2px;
+    classDef human fill:#fef3c7,stroke:#92400e,color:#111827,stroke-width:2px;
+    classDef automated fill:#f1f5f9,stroke:#475569,color:#111827;
+    class planWork,verifyEpic agent;
+    class awaitPlanApproval,epicHold human;
+    class awaitDependency,deliverStory,epicChecks,epicComplete,epicHeld,epicResult,planDecision,prepareEpic,publishEpicPR,reviewEpic,selectStory,storyEligibility,storyResult,ticketReceived automated;
+```
+
+## Story delivery
+
+```mermaid
+flowchart TD
+    storyStart(["Approved eligible story"])
+    prepareStoryBranch["Prepare fresh story branch from epic"]
+    dispatchImplementation["Dispatch isolated coding and testing"]
+    awaitImplementation["Wait for accepted fenced worker outcome"]
+    implementationResult{"Verified tests passed?"}
+    publishStoryPR["Publish tested story PR targeting epic"]
+    reviewStory[["Review story PR and obtain human merge approval"]]
+    storyFinished(["Return verified review outcome to epic"])
+    storyHold["Hold and escalate to human"]
+    storyHeld(["Return held outcome"])
+    storyStart --> prepareStoryBranch
+    prepareStoryBranch --> dispatchImplementation
+    dispatchImplementation --> awaitImplementation
+    awaitImplementation --> implementationResult
+    implementationResult -->|"passed for exact tested head"| publishStoryPR
+    implementationResult -->|"failed or uncertain"| storyHold
+    publishStoryPR --> reviewStory
+    reviewStory -->|"merged or closed or held"| storyFinished
+    storyHold --> storyHeld
+    classDef agent fill:#ede9fe,stroke:#6d28d9,color:#111827,stroke-width:2px;
+    classDef human fill:#fef3c7,stroke:#92400e,color:#111827,stroke-width:2px;
+    classDef automated fill:#f1f5f9,stroke:#475569,color:#111827;
+    class dispatchImplementation agent;
+    class storyHold human;
+    class awaitImplementation,implementationResult,prepareStoryBranch,publishStoryPR,reviewStory,storyFinished,storyHeld,storyStart automated;
+```
+
+## Repository review and merge
+
+```mermaid
+flowchart TD
+    reviewStart(["Bound story or epic PR"])
+    requestReview["Request Copilot or configured reviewer for current head"]
+    awaitReviewEvent["Wait for verified correlated observation"]
+    inspectReview["Read authoritative review checks head closure and approval"]
+    reviewDecision{"Verified review outcome?"}
+    dispatchRemediation["Increment attempt budget and dispatch remediation with tests"]
+    awaitRemediation["Wait for accepted fenced remediation outcome"]
+    remediationResult{"Verified remediation tests passed?"}
+    publishRemediation["Publish tested new head; invalidate stale approvals"]
+    awaitMergeApproval["Wait for explicit human approval of exact PR base and head"]
+    revalidateMerge["Revalidate human authority checks and exact binding"]
+    mergeGuards{"Merge guards satisfied?"}
+    requestMerge["Request merge through repository port"]
+    reviewMerged(["Return verified authorized merged outcome"])
+    reviewClosed(["Return closed-without-merge outcome"])
+    reviewHold["Hold and escalate; reconcile uncertain effects"]
+    reviewHeld(["Return held outcome"])
+    reviewStart --> requestReview
+    requestReview --> awaitReviewEvent
+    awaitReviewEvent -->|"webhook or trusted reconciliation observation"| inspectReview
+    inspectReview --> reviewDecision
+    reviewDecision -->|"incomplete review or checks; comment alone"| awaitReviewEvent
+    reviewDecision -->|"head changed; fresh review needed"| requestReview
+    reviewDecision -->|"completed review; actionable; authorized; attempts below 2"| dispatchRemediation
+    dispatchRemediation --> awaitRemediation
+    awaitRemediation --> remediationResult
+    remediationResult -->|"passed"| publishRemediation
+    remediationResult -->|"failed or uncertain"| reviewHold
+    publishRemediation -->|"request re-review; retain attempt count"| requestReview
+    reviewDecision -->|"current-head review and required checks pass"| awaitMergeApproval
+    awaitMergeApproval -->|"authenticated human command"| revalidateMerge
+    revalidateMerge --> mergeGuards
+    mergeGuards -->|"authorized exact base and head"| requestMerge
+    mergeGuards -->|"head changed; approval stale"| requestReview
+    mergeGuards -->|"revoked or unsupported or uncertain"| reviewHold
+    requestMerge -->|"await or reconcile provider closure"| awaitReviewEvent
+    reviewDecision -->|"verified authorized merge with exact binding"| reviewMerged
+    reviewDecision -->|"verified closed without merge"| reviewClosed
+    reviewDecision -->|"ambiguous or exhausted budget or revoked approval"| reviewHold
+    reviewHold --> reviewHeld
+    classDef agent fill:#ede9fe,stroke:#6d28d9,color:#111827,stroke-width:2px;
+    classDef human fill:#fef3c7,stroke:#92400e,color:#111827,stroke-width:2px;
+    classDef automated fill:#f1f5f9,stroke:#475569,color:#111827;
+    class dispatchRemediation agent;
+    class awaitMergeApproval,reviewHold human;
+    class awaitRemediation,awaitReviewEvent,inspectReview,mergeGuards,publishRemediation,remediationResult,requestMerge,requestReview,revalidateMerge,reviewClosed,reviewDecision,reviewHeld,reviewMerged,reviewStart automated;
+```
+
+## Events, authority and recovery
+
+- Ticket/repository adapters verify and durably deduplicate webhooks before
+  acknowledgement. Correlation uses integration, work item, repository, PR and
+  exact reviewed head; events never supply arbitrary BPMN targets or authority.
+- A completed Copilot review resumes the existing review wait through a normalized
+  observation. Individual comments are retained/deduplicated but do not imply
+  review completion. Repository review, check, head and closure events progress
+  independently of ticket callbacks. Reconciliation may supply the same trusted
+  observations when a webhook is late or missing.
+- Worker waits receive authenticated, fenced, accepted results. Failed or unknown
+  test outcomes cannot publish code. Current plan approval, dependencies, ownership
+  and cancellation must be checked again at dispatch and publication boundaries.
+- Two remediation attempts is the default maximum across the PR's review cycles;
+  publishing a new head or requesting another review never resets that count.
+  Only actionable completed review evidence for the current head permits dispatch.
+- Review/check success is eligibility, not merge authority. A separate authenticated
+  human approves the exact repository/PR/base/head; guards are revalidated before
+  a merge request. New heads invalidate old review/check/merge approval evidence.
+  Only independently verified, authorized merged state returns a merged outcome.
+- Call outcomes are `merged`, `closed` or `held`. Story dependencies unlock only on
+  verified merge into the epic. Epic acceptance/architecture checks and a separate
+  final human merge approval guard epic-to-main integration.
+- Database inbox/engine/domain handoffs are atomic or durable/retryable. Remote
+  publication and merge effects require idempotency and reconciliation; a database
+  rollback cannot undo them. No database locks span worker/provider waits.
+  Hold paths stop automatic dispatch and require human/recovery handling; they do
+  not claim containers or remote effects have already stopped. Detailed lease,
+  cancellation, timer and recovery subflows are intentionally not expanded here.
+
+## Current implementation and verification
+
+Verified ingress/classification, lifecycle guards, manual approval and the opt-in
+atomic approved-story starter exist. That packaged process only queues its first
+job and waits. The intake, planning/DAG scheduling, worker execution, publication,
+review webhook loop and final integration above span later roadmap work and are
+not delivered by this reference. #84 owns the next inbox-to-starter integration;
+#93 owns repository-specific workflow configuration. See the
+[provider/workflow boundaries](workflow-boundaries.md) and
+[persistence guide](control-plane-persistence.md#approved-execution-startup).
+
+Run the structural/schema checks with the project's Java build container:
+
+```sh
+docker compose -p forgeflow-reference-check run --rm build mvn -B -Dtest=WorkflowReferenceTest -Dsurefire.failIfNoSpecifiedTests=false test
+```
+
+Remove only that disposable verification project after the check:
+
+```sh
+docker compose -p forgeflow-reference-check down --volumes --remove-orphans
+```
+
+The check validates BPMN XML against Flowable's bundled BPMN schema, resolves
+sequence/call references, checks diagram coverage and orthogonal connectors, and compares Mermaid nodes,
+labels and edges. Mermaid syntax is also parsed during this change's verification.
+All three BPMN diagrams were also rendered in bpmn-js without import warnings,
+and the actor colors were checked in that viewer. Layout and color support can
+vary across editors; diagram selection and zoom may be needed. These checks do
+not establish executable process behavior. No reference process is deployed.

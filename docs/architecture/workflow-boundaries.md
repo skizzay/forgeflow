@@ -4,12 +4,15 @@ Target design for [#77](https://github.com/skizzay/forgeflow/issues/77).
 The [worker protocol](../requirements/worker-protocol.md) is the execution-plane
 contract within this design, not the workflow definition or provider API.
 
+The [development workflow reference](workflow-reference.md) supplies a matching
+non-executable BPMN model and Mermaid process views for this target event cycle.
+
 ## Responsibility and implementation status
 
 | Responsibility | Owner | Current status |
 |---|---|---|
 | Activity order, gateways, durable waits and business retry paths | Flowable BPMN | Bootstrap waits at `awaitImplementation`. Opt-in approved-story v1 queues its initial job and waits at awaitOutcome through the trusted Java starter (#89). Inbox dispatch, worker execution and later progression remain pending. |
-| Approval authority, attempt ownership, leases, fencing and verified evidence | Focused Java domain policies and activity handlers | Lifecycle guards, OAuth2 worker authentication and single-pair manual human approval exist; worker operations and process dispatch remain unimplemented. |
+| Approval authority, attempt ownership, leases, fencing and verified evidence | Focused Java domain policies and activity handlers | Lifecycle guards, OAuth2 worker authentication and single-pair manual human approval exist; the opt-in atomic Java starter exists; worker operations and inbox-triggered dispatch remain unimplemented. |
 | Job/story/epic transition model | Java lifecycle domain | Implemented today; must not grow into a parallel workflow sequencer. Independent business invariants remain, while BPMN owns process routing. |
 | Event ingestion and process correlation | Inbound adapters plus durable inbox and Flowable entry handlers | GitHub inbox verification/classification exists; normalized process-start/resume integration is proposed. |
 | Ticket operations | Ticket ports and provider adapters | Proposed; no provider-neutral ticket port is implemented. |
