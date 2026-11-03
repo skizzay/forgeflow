@@ -108,6 +108,11 @@ create table webhook_event (
     published_at timestamptz not null default now()
 );
 
+create table workflow_source_delivery (
+    delivery_id uuid primary key references webhook_event(delivery_id),
+    run_id uuid not null references workflow_run(id)
+);
+
 create table lifecycle_transition (
     command_id uuid primary key,
     request_sha256 text not null check (request_sha256 ~ '^[0-9a-f]{64}$'),

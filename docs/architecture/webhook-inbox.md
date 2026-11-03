@@ -79,6 +79,15 @@ Every inbox row requires a payload hash and byte count. HMAC verification occurs
 in the ingress use case before insertion; database constraints alone are not
 proof of authentication.
 
+## Execution consumer boundary
+
+The execution feature now has [classified source-delivery persistence](control-plane-persistence.md#classified-source-delivery-persistence)
+(#103): exact server-selected story routing, transactional claims and durable
+source-to-run checkpoints. It consumes existing classification without changing
+inbox state. No runtime dispatcher invokes it yet; #84 owns approved startup and
+signed-ingress-to-engine verification. Classification is still not dispatch or
+approval authority.
+
 ## Verification
 
 Real PostgreSQL tests cover bounded known-length/chunked ingress, altered/missing/
