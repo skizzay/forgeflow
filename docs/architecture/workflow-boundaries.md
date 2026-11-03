@@ -4,14 +4,22 @@ Target design for [#77](https://github.com/skizzay/forgeflow/issues/77).
 The [worker protocol](../requirements/worker-protocol.md) is the execution-plane
 contract within this design, not the workflow definition or provider API.
 
+The [development workflow reference](workflow-reference.md) supplies a matching
+non-executable BPMN model and Mermaid process views for this target event cycle.
+
+The [staged review/feedback contract](../requirements/review-and-feedback.md)
+defines QA, required specialist-agent reviews and human review for each PR head,
+plus a separate durable feedback store and governed skill-improvement workflow.
+
 ## Responsibility and implementation status
 
 | Responsibility | Owner | Current status |
 |---|---|---|
 | Activity order, gateways, durable waits and business retry paths | Flowable BPMN | Bootstrap waits at `awaitImplementation`. Opt-in approved-story v1 queues its initial job and waits at awaitOutcome through the trusted Java starter (#89). Inbox dispatch, worker execution and later progression remain pending. |
-| Approval authority, attempt ownership, leases, fencing and verified evidence | Focused Java domain policies and activity handlers | Lifecycle guards, OAuth2 worker authentication and single-pair manual human approval exist; worker operations and process dispatch remain unimplemented. |
+| Approval authority, attempt ownership, leases, fencing and verified evidence | Focused Java domain policies and activity handlers | Lifecycle guards, OAuth2 worker authentication and single-pair manual human approval exist; the opt-in atomic Java starter exists; worker operations and inbox-triggered dispatch remain unimplemented. |
 | Job/story/epic transition model | Java lifecycle domain | Implemented today; must not grow into a parallel workflow sequencer. Independent business invariants remain, while BPMN owns process routing. |
 | Event ingestion and process correlation | Inbound adapters plus durable inbox and Flowable entry handlers | GitHub inbox verification/classification exists; normalized process-start/resume integration is proposed. |
+| Review feedback and skill improvement | Separate feedback datastore and evaluated, human-approved skill workflow | Proposed; no feedback-store adapter, review aggregation or skill-promotion runtime is implemented. |
 | Ticket operations | Ticket ports and provider adapters | Proposed; no provider-neutral ticket port is implemented. |
 | Repository/change-request operations | Repository ports and provider adapters | Proposed; current GitHub-specific schema and webhook code are not a pluggable repository implementation. |
 
@@ -72,75 +80,68 @@ or arbitrary signal target in an external event.
 ```mermaid
 sequenceDiagram
     participant T as Ticket service
-    participant I as Verified ingress, inbox and correlation
+    participant I as Verified inbox and correlation
     participant F as Flowable BPMN
-    participant A as Activity handlers and outbound ports
-    participant R as Repository service
+    participant A as Activity handlers and assigned agents
+    participant R as Repository and QA services
+    participant D as Separate feedback datastore
+    participant H as Human reviewer
     T->>I: New ticket webhook
-    I->>I: Verify source and persist deduplicated delivery
+    I->>I: Verify and persist deduplicated delivery
     I-->>T: Acknowledge committed receipt
-    I->>F: Start intake once for configured WorkItemRef
-    F->>A: Read work item and validate approval/eligibility
-    A->>T: Query through ticket port
-    T-->>A: Work-item details
-    A-->>F: Details and independently verified approval facts
-    opt Authorized execution is eligible
-        F->>A: Dispatch coding and testing activity
-        Note over F,A: Worker claims activity and accepted result completes durable wait
-        A-->>F: Verified activity outcome
-        F->>A: Publish tested PR/MR
-        A->>R: Publish through repository port
-        R-->>A: ChangeRequestRef and exact base/head
-        A-->>F: Persisted publication binding
+    I->>F: Start eligible intake once
+    F->>A: Read ticket and obtain explicit plan approval
+    opt Approved story eligible
+        F->>A: Dispatch developer agent coding and local tests
+        A-->>F: Accepted fenced outcome and test evidence
+        F->>A: Publish tested PR and mark ready
+        A->>R: Publish bound PR and start or correlate QA
     end
-    Note over F: Wait for ticket or repository events
-    loop Independent events for the same process
-        alt Ticket update or comment
-            T->>I: Ticket webhook
-        else PR/MR review comment, review, check, head update or closure
-            R->>I: Repository webhook without a ticket callback
-        end
-        I->>I: Verify, persist, deduplicate and acknowledge delivery
-        I->>F: Resume existing process through correlated observation
-        opt Bound PR/MR needs review or closure handling
-            F->>A: Obtain current review/check/head and approval facts
-            A->>R: Query through repository port
-            R-->>A: Normalized current evidence
-            A-->>F: Verified facts for BPMN gateways
-            alt Open PR/MR with actionable comments and authorized within attempt cap
-                F->>A: Dispatch remediation and testing activity
-                A-->>F: Accepted outcome and verified test evidence
-                alt Tests pass
-                    F->>A: Publish tested commit and request re-review
-                    A->>R: Update PR/MR head through repository ports
-                    R-->>A: New head and publication binding
-                    A-->>F: Recorded publication outcome
-                    Note over F,R: Wait for fresh review/check webhooks and repeat this loop
-                else Tests fail or outcome is uncertain
-                    F->>A: Hold and escalate without publishing
-                end
-            else Open PR/MR with required review and checks passing for current head
-                Note over F: Wait for explicit human merge authorization
-                opt Authenticated human approves exact change-request binding
-                    A->>F: Verified approval from operator command
-                    F->>A: Revalidate guards and request merge
-                    A->>R: Merge exact approved base/head
-                    R-->>A: Remote result or unknown outcome
-                    A-->>F: Recorded observation or reconciliation hold
-                    Note over F,R: Await or reconcile verified merged state
-                end
-            else Change request is closed
-                F->>A: Record verified merge or handle closed-without-merge
-                A-->>F: Advance only if exact binding is verified merged
-            else Ambiguous, failing, stale or exhausted review budget
-                F->>A: Hold or escalate to human
+    loop Events for the same process and exact PR head
+        R->>I: QA check, agent/human review, comment, head or closure webhook
+        I->>I: Verify and durably deduplicate
+        I-->>R: Acknowledge committed ingress
+        I->>F: Resume matching stage with normalized observation
+        F->>A: Read authoritative stage and PR evidence
+        A->>R: Query current checks, reviews, head and closure
+        R-->>A: Verified facts with explicit unknowns
+        A->>D: Idempotent sanitized feedback via durable handoff
+        D-->>A: Feedback committed or checkpoint acknowledged
+        A-->>F: Current-stage facts and feedback checkpoint
+        alt QA passes for current head
+            F->>A: Dispatch all required specialist reviewer agents
+            A->>R: Agents publish review findings as comments and reviews
+        else All required agents pass for current head
+            F->>H: Request human review
+            H->>R: Approve exact merge binding or request changes
+        else QA fails or agent/human requests actionable changes within budget
+            F->>A: Dispatch developer agent remediation and local tests
+            A-->>F: Accepted outcome and resolution evidence
+            alt Local tests pass
+                F->>A: Publish new PR head and invalidate prior-stage approval
+                A->>R: Update head and restart mandatory QA
+                Note over F,R: Repeat QA, all required agent reviews and human review
+            else Local tests fail or outcome uncertain
+                F->>A: Hold and escalate without publication
             end
+        else Human approves exact merge binding after preceding stages pass
+            F->>A: Revalidate QA, every required agent review and human authority
+            A->>R: Request exact approved merge
+            Note over F,R: Await or reconcile verified provider merge. A reply alone is insufficient
+        else Verified closure
+            F->>A: Record exact authorized merge or closed-without-merge
+        else Head changed or stage pending
+            F->>A: Restart QA for changed head or retain durable stage wait
+        else Ambiguous, revoked, unsupported or attempt cap exhausted
+            F->>A: Hold and escalate to human
         end
     end
+    Note over D: Curated evidence feeds a separate evaluated, human-approved skill update workflow
 ```
 
+
 This is the proposed event cycle, not an executable BPMN definition. The PR/MR
-review-comment path, remediation, tested head publication, re-review and guarded
+QA/agent/human stage sequence, feedback persistence, remediation, QA restart and guarded
 merge are shown explicitly in this sequence. A merge reply alone is not proof of
 completion; verified merged state is required. Ticket-only events with no review
 binding remain in intake/approval handling rather than invoking review activities. The worker
@@ -153,7 +154,7 @@ they do not require a provider webhook.
 |---|---|
 | New ticket | Start one eligible intake process for the configured integration/work-item identity; validate approval before dispatch. |
 | Ticket update/comment | Resume that work item's process; inspect changed inputs/authorized approval, invalidate stale execution eligibility or keep waiting as appropriate. A comment/label alone is not approval. |
-| Change-request review/comment | Resume the existing review wait through the stored repository/change-request binding. BPMN may dispatch authorized bounded remediation or escalate ambiguity. No ticket event is required. |
+| Change-request review/comment | Resume the existing review wait through the stored repository/change-request binding. BPMN records feedback and may dispatch authorized bounded remediation, restart at QA, or escalate ambiguity. No ticket event is required. |
 | Check/review/head update | Re-evaluate eligibility for that exact head. Changed head invalidates stale checks/review/merge authorization; passing review alone does not authorize merging. |
 | Change request closed | Verify exact repository/base/head and merged status through the repository port. Closed without merge must not mark the story MERGED. |
 
@@ -167,34 +168,49 @@ behavior or permission to merge in the first vertical slice.
 
 ```mermaid
 flowchart TD
-    R[Repository emits review, comment, check, head or closure event] --> I[Verify and persist provider delivery]
-    I --> F[Correlate PR/MR binding and resume Flowable review wait]
-    F --> V[Read current review, checks, base, head and closure evidence]
-    V -->|Actionable changes and authorized within attempt cap| W[Dispatch remediation activity]
-    W --> T[Run and verify tests]
-    T -->|Pass| P[Publish tested head and request review through repository ports]
-    P --> Q[Wait for fresh repository observations]
-    Q -->|Next repository event| R
-    T -->|Fail or uncertain| H[Hold or escalate to human]
-    V -->|Required review and checks pass for exact head| A[Wait for explicit authorized human merge approval]
-    A -->|Revalidate approval, checks, base and head| M[Invoke guarded repository merge activity]
-    M -->|Observe or reconcile remote outcome| R
-    V -->|Ambiguous, failing, exhausted cap or unknown evidence| H
-    V -->|Change request closed| C{Verified merged with expected binding?}
-    C -->|Yes| D[Record verified merge and advance the process]
-    C -->|No| N[Handle closure without marking story merged]
+    Ready[PR ready for review or updated head] --> QA[Run required automated QA]
+    QA --> QWait[Wait for verified QA webhook]
+    QWait --> QRecord[Capture QA feedback in separate store]
+    QRecord --> QPass{QA passes for exact head?}
+    QPass -->|Yes| Agents[Dispatch all required specialist reviewer agents]
+    Agents --> AWait[Wait for agent reviews and comment webhooks]
+    AWait --> ARecord[Capture agent feedback in separate store]
+    ARecord --> APass{Every required agent passes?}
+    APass -->|Yes| Human[Request human review and await verified decision]
+    Human --> HRecord[Capture human feedback in separate store]
+    HRecord --> HPass{Authorized exact-head human approval?}
+    QPass -->|Actionable failure within budget| Dev[Developer agent remediates and runs local tests]
+    APass -->|Actionable changes requested within budget| Dev
+    HPass -->|Actionable changes requested within budget| Dev
+    Dev --> Local{Local tests pass?}
+    Local -->|Yes| Publish[Publish tested head and invalidate all stage approvals]
+    Publish --> QA
+    Local -->|No or uncertain| Hold[Hold or escalate to human]
+    QPass -->|Pending| QWait
+    APass -->|Pending| AWait
+    HPass -->|Pending| Human
+    QPass -->|Unknown or exhausted| Hold
+    APass -->|Ambiguous or exhausted| Hold
+    HPass -->|Rejected scope or exhausted| Hold
+    HPass -->|Yes| Guards[Revalidate QA all agent reviews authority base and head]
+    Guards --> Merge[Request guarded merge and await verified closure]
+    Merge --> Outcome{Verified authorized exact merge?}
+    Outcome -->|Yes| Done[Record merge and resolution feedback then advance]
+    Outcome -->|No or unknown| Hold
 ```
+
 
 Remediation uses the existing worker activity path and preserves its approval,
 lease and fencing guards. Default cap is two remediation attempts; publishing a
-new head must not reset the budget. Failed tests cannot enter the publish/merge
-path. Re-review/check events resume the wait again; they do not create new story
+new head must not reset the budget. Failed local remediation tests cannot enter the publish/merge
+path. New published heads restart mandatory QA and all subsequent review stages. QA, agent-review and human-review events resume their respective waits; they do not create new story
 processes. Deduplicate comments and observations across delivery/reconciliation
 so replay cannot consume another attempt or repeat a merge.
 
-A review may make a change eligible for merging, but does not grant merge
-authority. Human approval is a separate authenticated command bound to the exact
-repository/change-request/base/head; revalidate it and required evidence at the
+Agent reviews make a change eligible for human review and never grant merge
+authority. The subsequent authenticated human review/approval must authorize the
+exact repository/change-request/base/head; an approved operator command may also
+supply that authority. In either case, revalidate it and required evidence at the
 merge boundary. Unsupported provider checks/review/merge capabilities, changed
 heads and unknown outcomes hold the workflow. A merge request is not proof of a
 merge: record completion only from verified provider state. Existing epic and
