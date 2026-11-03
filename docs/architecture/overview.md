@@ -29,7 +29,21 @@ Worker outcomes and authenticated operator commands are additional process input
 Ticket creation does not authorize coding; approval and evidence guards remain
 mandatory. See the [event-driven sequence](workflow-boundaries.md#event-driven-process-entry-and-continuation).
 
-Codex drafts an epic and child stories; human approves the plan. Validate structured dependencies and acceptance-criteria coverage, reject cycles, create epic branch from main. Eligible stories receive isolated branches from the latest epic head. A story's dependencies are satisfied only after their PRs merge into the epic branch. Codex implements and tests, opens PR targeting epic branch. Copilot reviews; actionable feedback may trigger bounded remediation cycles. Required checks and merge permissions gate story integration. Once all stories merge, integration and architecture reviews run, then human approves epic-to-main PR and release.
+Codex drafts an epic and child stories; human approves the plan. Validate structured dependencies and acceptance-criteria coverage, reject cycles, create epic branch from main. Eligible stories receive isolated branches from the latest epic head. A story's dependencies are satisfied only after their PRs merge into the epic branch. Codex implements and tests, opens PR targeting epic branch. Copilot reviews; actionable feedback may trigger bounded remediation cycles. Required checks and merge permissions gate story integration. Once all stories merge, integration and architecture reviews run, then human approves the release-to-main PR and the exact versioned release.
+
+The [main-only GitFlow contract](../requirements/branching-and-versioning.md)
+uses temporary epic/feature branches and a versioned release branch, with no develop
+branch. An independently approved hotfix can branch from the latest released main
+commit, produce a compatible patch through the same review/merge gates, and track
+propagation into affected active epics/releases. The
+[workflow reference](workflow-reference.md) models both paths; runtime release and
+hotfix handling remain proposed.
+
+Review/QA findings, human decisions and verified remediation outcomes are retained
+in a [separate feedback datastore](../requirements/review-and-feedback.md), using a
+durable handoff from operational state. A separate workflow proposes and evaluates
+skill changes, obtains human approval and publishes versioned skills for future
+jobs; feedback never directly rewrites skills or grants execution authority.
 
 ## Reliability and safeguards
 Use idempotency keys for webhook deliveries and job dispatch, leases and heartbeats, reconciliations before retry, concurrency budgets, stop/pause, timeouts and human escalation. Treat model output as untrusted. Limit repository credentials and permissions; use short-lived tokens, redact logs, and never commit secrets.

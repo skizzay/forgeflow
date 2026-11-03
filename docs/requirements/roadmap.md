@@ -12,7 +12,7 @@ Structured issue templates; acceptance-criteria coverage; dependency DAG with cy
 Global/repo/epic concurrency controls; branch freshness checks; leases, heartbeats, retries and worker recovery; downstream dispatch only after prerequisite merge.
 
 ## Milestone 4 — Review loop
-Copilot review ingestion; remediation jobs; test verification; two-attempt default limit; escalation for ambiguity and repeated failures.
+Ordered QA → specialist reviewer-agent reviews → human review; webhook-triggered developer remediation restarting at QA; separate durable feedback capture; two-attempt default limit and escalation. Feedback-driven skill improvement requires evaluated, human-approved changes; concrete delivery slices remain to be scheduled.
 
 ## Milestone 5 — Integration and release
 Epic acceptance verification, architecture review, final epic PR to main, human merge approval and release preparation.
