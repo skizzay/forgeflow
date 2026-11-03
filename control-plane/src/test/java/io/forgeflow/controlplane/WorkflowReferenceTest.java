@@ -75,7 +75,8 @@ class WorkflowReferenceTest {
         for (int i = 0; i < stores.getLength(); i++) {
             var store = (Element) stores.item(i);
             assertThat(store.getAttribute("dataStoreRef")).isEqualTo("agentFeedbackData");
-            bpmnNodes.put(store.getAttribute("id"), store.getAttribute("name"));
+            assertThat(bpmnNodes.put(store.getAttribute("id"), store.getAttribute("name")))
+                    .as("Unique BPMN element ID: %s", store.getAttribute("id")).isNull();
             assertThat(model.getGraphicInfo(store.getAttribute("id"))).isNotNull();
         }
         var associations = document.getElementsByTagNameNS(namespace, "association");
