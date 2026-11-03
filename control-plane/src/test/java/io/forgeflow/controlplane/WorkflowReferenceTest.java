@@ -13,6 +13,7 @@ import java.util.regex.Pattern;
 import org.flowable.bpmn.converter.BpmnXMLConverter;
 import org.flowable.bpmn.model.CallActivity;
 import org.flowable.bpmn.model.FlowNode;
+import org.flowable.bpmn.model.Process;
 import org.flowable.bpmn.model.SequenceFlow;
 import org.flowable.bpmn.model.StartEvent;
 import org.flowable.bpmn.model.Task;
@@ -28,7 +29,7 @@ class WorkflowReferenceTest {
         var converter = new BpmnXMLConverter();
         var model = converter.convertToBpmnModel(() -> new ByteArrayInputStream(xml), true, true);
         var processes = model.getProcesses().stream().map(process -> process.getId()).toList();
-        assertThat(processes).hasSize(3);
+        assertThat(processes).containsExactlyInAnyOrder("epicCoordinationReference", "storyDeliveryReference", "reviewMergeReference", "hotfixDeliveryReference");
         Map<String, String> bpmnNodes = new HashMap<>();
         Set<String> bpmnEdges = new HashSet<>();
         for (var process : model.getProcesses()) {
@@ -62,6 +63,12 @@ class WorkflowReferenceTest {
                 bpmnEdges.add(edge(flow.getSourceRef(), flow.getName(), flow.getTargetRef()));
             }
         }
+        var hotfix = model.getProcessById("hotfixDeliveryReference");
+        assertThat(((CallActivity) hotfix.getFlowElement("reviewHotfix")).getCalledElement()).isEqualTo("reviewMergeReference");
+        assertThat(reaches(hotfix, "hotfixRequested", "tagHotfix", "")).isTrue();
+        for (String gate : Set.of("awaitHotfixApproval", "hotfixBaseReady", "hotfixTests", "reviewHotfix", "awaitHotfixReleaseApproval", "hotfixReleaseReady")) {
+            assertThat(reaches(hotfix, "hotfixRequested", "tagHotfix", gate)).as("Hotfix cannot bypass %s", gate).isFalse();
+        }
         String guide = Files.readString(architecture.resolve("workflow-reference.md"));
         var nodePattern = Pattern.compile("^    (\\w+)(?:\\[|\\{|\\().*?\"([^\"]+)\"", Pattern.MULTILINE);
         var edgePattern = Pattern.compile("^    (\\w+) -->(?:\\|\"([^\"]+)\"\\|)? (\\w+)$", Pattern.MULTILINE);
@@ -71,6 +78,19 @@ class WorkflowReferenceTest {
         edgePattern.matcher(guide).results().forEach(match -> mermaidEdges.add(edge(match.group(1), match.group(2), match.group(3))));
         assertThat(mermaidNodes).containsExactlyInAnyOrderEntriesOf(bpmnNodes);
         assertThat(mermaidEdges).containsExactlyInAnyOrderElementsOf(bpmnEdges);
+    }
+    private static boolean reaches(Process process, String start, String target, String excluded) {
+        var pending = new ArrayDeque<String>();
+        var visited = new HashSet<String>();
+        pending.add(start);
+        while (!pending.isEmpty()) {
+            String current = pending.remove();
+            if (current.equals(excluded) || !visited.add(current)) continue;
+            if (current.equals(target)) return true;
+            var node = (FlowNode) process.getFlowElement(current);
+            node.getOutgoingFlows().forEach(flow -> pending.add(flow.getTargetRef()));
+        }
+        return false;
     }
     private static String edge(String source, String label, String target) {
         return source + "\t" + (label == null ? "" : label) + "\t" + target;

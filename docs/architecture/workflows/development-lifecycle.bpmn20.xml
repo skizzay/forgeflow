@@ -5,12 +5,13 @@
   <message id="humanDecision" name="Authenticated human decision"/>
   <message id="processObservation" name="Verified correlated repository ticket or reconciliation observation"/>
   <message id="workerOutcome" name="Accepted fenced worker outcome"/>
+  <message id="hotfixRequest" name="Verified hotfix ticket"/>
   <process id="epicCoordinationReference" name="Epic coordination" isExecutable="false">
     <startEvent id="ticketReceived" name="Verified new-ticket webhook"><messageEventDefinition messageRef="newTicket"/></startEvent>
     <serviceTask id="planWork" name="Read ticket and draft validated plan"/>
     <receiveTask id="awaitPlanApproval" name="Wait for explicit human plan decision" messageRef="humanDecision"/>
     <exclusiveGateway id="planDecision" name="Plan approved?"/>
-    <serviceTask id="prepareEpic" name="Prepare epic branch from approved main"/>
+    <serviceTask id="prepareEpic" name="Create epic/ISSUE from approved main commit"/>
     <serviceTask id="selectStory" name="Select dependency-ready story"/>
     <exclusiveGateway id="storyEligibility" name="Story eligibility?"/>
     <receiveTask id="awaitDependency" name="Wait for ticket or verified dependency merge" messageRef="processObservation"/>
@@ -18,10 +19,16 @@
     <exclusiveGateway id="storyResult" name="Story result?"/>
     <serviceTask id="verifyEpic" name="Verify epic acceptance and architecture"/>
     <exclusiveGateway id="epicChecks" name="Epic checks passed?"/>
-    <serviceTask id="publishEpicPR" name="Publish epic-to-main PR"/>
+    <serviceTask id="reserveRelease" name="Classify SemVer change and reserve unused release version"/>
+    <serviceTask id="prepareRelease" name="Create release/X.Y.Z from tested epic head"/>
+    <serviceTask id="publishEpicPR" name="Publish release/X.Y.Z to main PR"/>
     <callActivity id="reviewEpic" name="Review epic PR and obtain final human merge approval" calledElement="reviewMergeReference"/>
     <exclusiveGateway id="epicResult" name="Final PR result?"/>
-    <endEvent id="epicComplete" name="Verified epic-to-main merge"/>
+    <receiveTask id="awaitReleaseApproval" name="Wait for human approval of version and merged release commit" messageRef="humanDecision"/>
+    <serviceTask id="verifyRelease" name="Revalidate version reservation and exact approved main commit"/>
+    <exclusiveGateway id="releaseReady" name="Release evidence current?"/>
+    <serviceTask id="tagRelease" name="Publish immutable vX.Y.Z tag for approved main commit"/>
+    <endEvent id="epicComplete" name="Verified normal release and immutable version tag"/>
     <serviceTask id="epicHold" name="Hold and escalate to human"/>
     <endEvent id="epicHeld" name="Held; no automatic continuation"/>
     <sequenceFlow id="epicCoordinationReference_flow_0" sourceRef="ticketReceived" targetRef="planWork" name=""/>
@@ -39,17 +46,24 @@
     <sequenceFlow id="epicCoordinationReference_flow_12" sourceRef="storyResult" targetRef="selectStory" name="verified merged; unlock dependents"/>
     <sequenceFlow id="epicCoordinationReference_flow_13" sourceRef="storyResult" targetRef="epicHold" name="closed or held"/>
     <sequenceFlow id="epicCoordinationReference_flow_14" sourceRef="verifyEpic" targetRef="epicChecks" name=""/>
-    <sequenceFlow id="epicCoordinationReference_flow_15" sourceRef="epicChecks" targetRef="publishEpicPR" name="passed"/>
+    <sequenceFlow id="epicCoordinationReference_flow_15" sourceRef="epicChecks" targetRef="reserveRelease" name="passed"/>
     <sequenceFlow id="epicCoordinationReference_flow_16" sourceRef="epicChecks" targetRef="epicHold" name="failed or unknown"/>
     <sequenceFlow id="epicCoordinationReference_flow_17" sourceRef="publishEpicPR" targetRef="reviewEpic" name=""/>
     <sequenceFlow id="epicCoordinationReference_flow_18" sourceRef="reviewEpic" targetRef="epicResult" name=""/>
-    <sequenceFlow id="epicCoordinationReference_flow_19" sourceRef="epicResult" targetRef="epicComplete" name="verified authorized merge"/>
+    <sequenceFlow id="epicCoordinationReference_flow_19" sourceRef="epicResult" targetRef="awaitReleaseApproval" name="verified authorized merge"/>
     <sequenceFlow id="epicCoordinationReference_flow_20" sourceRef="epicResult" targetRef="epicHold" name="closed or held"/>
     <sequenceFlow id="epicCoordinationReference_flow_21" sourceRef="epicHold" targetRef="epicHeld" name=""/>
+    <sequenceFlow id="epicCoordinationReference_flow_22" sourceRef="reserveRelease" targetRef="prepareRelease" name=""/>
+    <sequenceFlow id="epicCoordinationReference_flow_23" sourceRef="prepareRelease" targetRef="publishEpicPR" name=""/>
+    <sequenceFlow id="epicCoordinationReference_flow_24" sourceRef="awaitReleaseApproval" targetRef="verifyRelease" name="authenticated release authorization"/>
+    <sequenceFlow id="epicCoordinationReference_flow_25" sourceRef="verifyRelease" targetRef="releaseReady" name=""/>
+    <sequenceFlow id="epicCoordinationReference_flow_26" sourceRef="releaseReady" targetRef="tagRelease" name="exact approved commit and unused version"/>
+    <sequenceFlow id="epicCoordinationReference_flow_27" sourceRef="releaseReady" targetRef="epicHold" name="changed base or collision or uncertain"/>
+    <sequenceFlow id="epicCoordinationReference_flow_28" sourceRef="tagRelease" targetRef="epicComplete" name="verified tag identity; reconcile unknown outcome"/>
   </process>
   <process id="storyDeliveryReference" name="Story delivery" isExecutable="false">
     <startEvent id="storyStart" name="Approved eligible story"/>
-    <serviceTask id="prepareStoryBranch" name="Prepare fresh story branch from epic"/>
+    <serviceTask id="prepareStoryBranch" name="Create feature/EPIC-STORY from fresh approved epic head"/>
     <serviceTask id="dispatchImplementation" name="Dispatch isolated coding and testing"/>
     <receiveTask id="awaitImplementation" name="Wait for accepted fenced worker outcome" messageRef="workerOutcome"/>
     <exclusiveGateway id="implementationResult" name="Verified tests passed?"/>
@@ -69,7 +83,7 @@
     <sequenceFlow id="storyDeliveryReference_flow_8" sourceRef="storyHold" targetRef="storyHeld" name=""/>
   </process>
   <process id="reviewMergeReference" name="Repository review and merge" isExecutable="false">
-    <startEvent id="reviewStart" name="Bound story or epic PR"/>
+    <startEvent id="reviewStart" name="Bound story release or hotfix PR"/>
     <serviceTask id="requestReview" name="Request Copilot or configured reviewer for current head"/>
     <receiveTask id="awaitReviewEvent" name="Wait for verified correlated observation" messageRef="processObservation"/>
     <serviceTask id="inspectReview" name="Read authoritative review checks head closure and approval"/>
@@ -110,6 +124,53 @@
     <sequenceFlow id="reviewMergeReference_flow_21" sourceRef="reviewDecision" targetRef="reviewHold" name="ambiguous or exhausted budget or revoked approval"/>
     <sequenceFlow id="reviewMergeReference_flow_22" sourceRef="reviewHold" targetRef="reviewHeld" name=""/>
   </process>
+  <process id="hotfixDeliveryReference" name="Hotfix delivery" isExecutable="false">
+    <startEvent id="hotfixRequested" name="Verified hotfix ticket; no epic required"><messageEventDefinition messageRef="hotfixRequest"/></startEvent>
+    <serviceTask id="assessHotfix" name="Pin latest released main tag and assess PATCH compatibility"/>
+    <receiveTask id="awaitHotfixApproval" name="Wait for human approval of hotfix scope and release base" messageRef="humanDecision"/>
+    <exclusiveGateway id="hotfixApproved" name="Hotfix authorized?"/>
+    <serviceTask id="reserveHotfix" name="Reserve next unused PATCH version"/>
+    <exclusiveGateway id="hotfixBaseReady" name="Approved released main base still current?"/>
+    <serviceTask id="createHotfix" name="Create hotfix/X.Y.Z from approved released main commit"/>
+    <serviceTask id="implementHotfix" name="Dispatch agent hotfix implementation and regression tests"/>
+    <receiveTask id="awaitHotfixOutcome" name="Wait for accepted fenced hotfix outcome" messageRef="workerOutcome"/>
+    <exclusiveGateway id="hotfixTests" name="Hotfix tests passed for exact head?"/>
+    <serviceTask id="publishHotfixPR" name="Publish hotfix/X.Y.Z to main PR"/>
+    <callActivity id="reviewHotfix" name="Review hotfix PR and obtain human merge approval" calledElement="reviewMergeReference"/>
+    <exclusiveGateway id="hotfixMerge" name="Hotfix merge result?"/>
+    <receiveTask id="awaitHotfixReleaseApproval" name="Wait for human approval of patch version and merged commit" messageRef="humanDecision"/>
+    <serviceTask id="verifyHotfixRelease" name="Revalidate PATCH reservation and exact approved main commit"/>
+    <exclusiveGateway id="hotfixReleaseReady" name="Patch release evidence current?"/>
+    <serviceTask id="tagHotfix" name="Publish immutable vX.Y.Z tag"/>
+    <serviceTask id="propagateHotfix" name="Track reviewed propagation PRs into active epic and release branches"/>
+    <endEvent id="hotfixComplete" name="Patch released; propagation tracked separately"/>
+    <serviceTask id="hotfixHold" name="Hold and escalate; reconcile release conflicts"/>
+    <endEvent id="hotfixHeld" name="Held; no automatic continuation"/>
+    <sequenceFlow id="hotfixDeliveryReference_flow_0" sourceRef="hotfixRequested" targetRef="assessHotfix" name=""/>
+    <sequenceFlow id="hotfixDeliveryReference_flow_1" sourceRef="assessHotfix" targetRef="awaitHotfixApproval" name=""/>
+    <sequenceFlow id="hotfixDeliveryReference_flow_2" sourceRef="awaitHotfixApproval" targetRef="hotfixApproved" name=""/>
+    <sequenceFlow id="hotfixDeliveryReference_flow_3" sourceRef="hotfixApproved" targetRef="reserveHotfix" name="approved compatible bug fix on latest supported release"/>
+    <sequenceFlow id="hotfixDeliveryReference_flow_4" sourceRef="hotfixApproved" targetRef="hotfixHold" name="rejected or incompatible or older release line"/>
+    <sequenceFlow id="hotfixDeliveryReference_flow_5" sourceRef="reserveHotfix" targetRef="hotfixBaseReady" name=""/>
+    <sequenceFlow id="hotfixDeliveryReference_flow_6" sourceRef="hotfixBaseReady" targetRef="createHotfix" name="main equals pinned release; version unused"/>
+    <sequenceFlow id="hotfixDeliveryReference_flow_7" sourceRef="hotfixBaseReady" targetRef="hotfixHold" name="main drift or competing release"/>
+    <sequenceFlow id="hotfixDeliveryReference_flow_8" sourceRef="createHotfix" targetRef="implementHotfix" name=""/>
+    <sequenceFlow id="hotfixDeliveryReference_flow_9" sourceRef="implementHotfix" targetRef="awaitHotfixOutcome" name=""/>
+    <sequenceFlow id="hotfixDeliveryReference_flow_10" sourceRef="awaitHotfixOutcome" targetRef="hotfixTests" name=""/>
+    <sequenceFlow id="hotfixDeliveryReference_flow_11" sourceRef="hotfixTests" targetRef="publishHotfixPR" name="passed"/>
+    <sequenceFlow id="hotfixDeliveryReference_flow_12" sourceRef="hotfixTests" targetRef="hotfixHold" name="failed or uncertain"/>
+    <sequenceFlow id="hotfixDeliveryReference_flow_13" sourceRef="publishHotfixPR" targetRef="reviewHotfix" name=""/>
+    <sequenceFlow id="hotfixDeliveryReference_flow_14" sourceRef="reviewHotfix" targetRef="hotfixMerge" name=""/>
+    <sequenceFlow id="hotfixDeliveryReference_flow_15" sourceRef="hotfixMerge" targetRef="awaitHotfixReleaseApproval" name="verified authorized exact merge"/>
+    <sequenceFlow id="hotfixDeliveryReference_flow_16" sourceRef="hotfixMerge" targetRef="hotfixHold" name="closed or held"/>
+    <sequenceFlow id="hotfixDeliveryReference_flow_17" sourceRef="awaitHotfixReleaseApproval" targetRef="verifyHotfixRelease" name="authenticated release authorization"/>
+    <sequenceFlow id="hotfixDeliveryReference_flow_18" sourceRef="verifyHotfixRelease" targetRef="hotfixReleaseReady" name=""/>
+    <sequenceFlow id="hotfixDeliveryReference_flow_19" sourceRef="hotfixReleaseReady" targetRef="tagHotfix" name="exact approved commit and unused PATCH version"/>
+    <sequenceFlow id="hotfixDeliveryReference_flow_20" sourceRef="hotfixReleaseReady" targetRef="hotfixHold" name="changed commit or collision or uncertain"/>
+    <sequenceFlow id="hotfixDeliveryReference_flow_21" sourceRef="tagHotfix" targetRef="propagateHotfix" name="verified tag identity; reconcile unknown outcome"/>
+    <sequenceFlow id="hotfixDeliveryReference_flow_22" sourceRef="propagateHotfix" targetRef="hotfixComplete" name=""/>
+    <sequenceFlow id="hotfixDeliveryReference_flow_23" sourceRef="hotfixHold" targetRef="hotfixHeld" name=""/>
+  </process>
   <bpmndi:BPMNDiagram id="epicCoordinationReference_diagram"><bpmndi:BPMNPlane id="epicCoordinationReference_plane" bpmnElement="epicCoordinationReference">
     <bpmndi:BPMNShape id="ticketReceived_shape" bpmnElement="ticketReceived" bioc:fill="#f1f5f9" bioc:stroke="#475569"><dc:Bounds x="120" y="99" width="60" height="60"/><bpmndi:BPMNLabel><dc:Bounds x="60" y="164" width="180" height="50"/></bpmndi:BPMNLabel></bpmndi:BPMNShape>
     <bpmndi:BPMNShape id="planWork_shape" bpmnElement="planWork" bioc:fill="#ede9fe" bioc:stroke="#6d28d9"><dc:Bounds x="350" y="81" width="240" height="96"/></bpmndi:BPMNShape>
@@ -119,38 +180,51 @@
     <bpmndi:BPMNShape id="selectStory_shape" bpmnElement="selectStory" bioc:fill="#f1f5f9" bioc:stroke="#475569"><dc:Bounds x="2010" y="71" width="240" height="96"/></bpmndi:BPMNShape>
     <bpmndi:BPMNShape id="storyEligibility_shape" bpmnElement="storyEligibility" bioc:fill="#f1f5f9" bioc:stroke="#475569"><dc:Bounds x="2442.5" y="166" width="60" height="60"/><bpmndi:BPMNLabel><dc:Bounds x="2382.5" y="231" width="180" height="50"/></bpmndi:BPMNLabel></bpmndi:BPMNShape>
     <bpmndi:BPMNShape id="awaitDependency_shape" bpmnElement="awaitDependency" bioc:fill="#f1f5f9" bioc:stroke="#475569"><dc:Bounds x="3000" y="63" width="240" height="96"/></bpmndi:BPMNShape>
-    <bpmndi:BPMNShape id="deliverStory_shape" bpmnElement="deliverStory" bioc:fill="#f1f5f9" bioc:stroke="#475569"><dc:Bounds x="3000" y="452.4" width="240" height="96"/></bpmndi:BPMNShape>
-    <bpmndi:BPMNShape id="storyResult_shape" bpmnElement="storyResult" bioc:fill="#f1f5f9" bioc:stroke="#475569"><dc:Bounds x="3410" y="480.4" width="60" height="60"/><bpmndi:BPMNLabel><dc:Bounds x="3350" y="545.4" width="180" height="50"/></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="deliverStory_shape" bpmnElement="deliverStory" bioc:fill="#f1f5f9" bioc:stroke="#475569"><dc:Bounds x="3000" y="424" width="240" height="96"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="storyResult_shape" bpmnElement="storyResult" bioc:fill="#f1f5f9" bioc:stroke="#475569"><dc:Bounds x="3410" y="452" width="60" height="60"/><bpmndi:BPMNLabel><dc:Bounds x="3350" y="517" width="180" height="50"/></bpmndi:BPMNLabel></bpmndi:BPMNShape>
     <bpmndi:BPMNShape id="verifyEpic_shape" bpmnElement="verifyEpic" bioc:fill="#ede9fe" bioc:stroke="#6d28d9"><dc:Bounds x="3000" y="229" width="240" height="96"/></bpmndi:BPMNShape>
     <bpmndi:BPMNShape id="epicChecks_shape" bpmnElement="epicChecks" bioc:fill="#f1f5f9" bioc:stroke="#475569"><dc:Bounds x="3410" y="247" width="60" height="60"/><bpmndi:BPMNLabel><dc:Bounds x="3350" y="312" width="180" height="50"/></bpmndi:BPMNLabel></bpmndi:BPMNShape>
-    <bpmndi:BPMNShape id="publishEpicPR_shape" bpmnElement="publishEpicPR" bioc:fill="#f1f5f9" bioc:stroke="#475569"><dc:Bounds x="3960" y="219" width="240" height="96"/></bpmndi:BPMNShape>
-    <bpmndi:BPMNShape id="reviewEpic_shape" bpmnElement="reviewEpic" bioc:fill="#f1f5f9" bioc:stroke="#475569"><dc:Bounds x="4310" y="219" width="240" height="96"/></bpmndi:BPMNShape>
-    <bpmndi:BPMNShape id="epicResult_shape" bpmnElement="epicResult" bioc:fill="#f1f5f9" bioc:stroke="#475569"><dc:Bounds x="4720" y="237" width="60" height="60"/><bpmndi:BPMNLabel><dc:Bounds x="4660" y="302" width="180" height="50"/></bpmndi:BPMNLabel></bpmndi:BPMNShape>
-    <bpmndi:BPMNShape id="epicComplete_shape" bpmnElement="epicComplete" bioc:fill="#f1f5f9" bioc:stroke="#475569"><dc:Bounds x="5330" y="227" width="60" height="60"/><bpmndi:BPMNLabel><dc:Bounds x="5270" y="292" width="180" height="50"/></bpmndi:BPMNLabel></bpmndi:BPMNShape>
-    <bpmndi:BPMNShape id="epicHold_shape" bpmnElement="epicHold" bioc:fill="#fef3c7" bioc:stroke="#92400e"><dc:Bounds x="5270" y="412" width="240" height="96"/></bpmndi:BPMNShape>
-    <bpmndi:BPMNShape id="epicHeld_shape" bpmnElement="epicHeld" bioc:fill="#f1f5f9" bioc:stroke="#475569"><dc:Bounds x="5680" y="430" width="60" height="60"/><bpmndi:BPMNLabel><dc:Bounds x="5620" y="495" width="180" height="50"/></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="reserveRelease_shape" bpmnElement="reserveRelease" bioc:fill="#f1f5f9" bioc:stroke="#475569"><dc:Bounds x="3960" y="219" width="240" height="96"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="prepareRelease_shape" bpmnElement="prepareRelease" bioc:fill="#f1f5f9" bioc:stroke="#475569"><dc:Bounds x="4310" y="219" width="240" height="96"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="publishEpicPR_shape" bpmnElement="publishEpicPR" bioc:fill="#f1f5f9" bioc:stroke="#475569"><dc:Bounds x="4660" y="219" width="240" height="96"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="reviewEpic_shape" bpmnElement="reviewEpic" bioc:fill="#f1f5f9" bioc:stroke="#475569"><dc:Bounds x="5010" y="219" width="240" height="96"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="epicResult_shape" bpmnElement="epicResult" bioc:fill="#f1f5f9" bioc:stroke="#475569"><dc:Bounds x="5440" y="237" width="60" height="60"/><bpmndi:BPMNLabel><dc:Bounds x="5380" y="302" width="180" height="50"/></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="awaitReleaseApproval_shape" bpmnElement="awaitReleaseApproval" bioc:fill="#fef3c7" bioc:stroke="#92400e"><dc:Bounds x="6000" y="209" width="240" height="96"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="verifyRelease_shape" bpmnElement="verifyRelease" bioc:fill="#f1f5f9" bioc:stroke="#475569"><dc:Bounds x="6670" y="209" width="240" height="96"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="releaseReady_shape" bpmnElement="releaseReady" bioc:fill="#f1f5f9" bioc:stroke="#475569"><dc:Bounds x="7080" y="227" width="60" height="60"/><bpmndi:BPMNLabel><dc:Bounds x="7020" y="292" width="180" height="50"/></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="tagRelease_shape" bpmnElement="tagRelease" bioc:fill="#f1f5f9" bioc:stroke="#475569"><dc:Bounds x="7630" y="199" width="240" height="96"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="epicComplete_shape" bpmnElement="epicComplete" bioc:fill="#f1f5f9" bioc:stroke="#475569"><dc:Bounds x="8360" y="217" width="60" height="60"/><bpmndi:BPMNLabel><dc:Bounds x="8300" y="282" width="180" height="50"/></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="epicHold_shape" bpmnElement="epicHold" bioc:fill="#fef3c7" bioc:stroke="#92400e"><dc:Bounds x="7630" y="374" width="240" height="96"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="epicHeld_shape" bpmnElement="epicHeld" bioc:fill="#f1f5f9" bioc:stroke="#475569"><dc:Bounds x="8040" y="392" width="60" height="60"/><bpmndi:BPMNLabel><dc:Bounds x="7980" y="457" width="180" height="50"/></bpmndi:BPMNLabel></bpmndi:BPMNShape>
     <bpmndi:BPMNEdge id="epicCoordinationReference_flow_0_edge" bpmnElement="epicCoordinationReference_flow_0"><di:waypoint x="180" y="129"/><di:waypoint x="350" y="129"/></bpmndi:BPMNEdge>
     <bpmndi:BPMNEdge id="epicCoordinationReference_flow_1_edge" bpmnElement="epicCoordinationReference_flow_1"><di:waypoint x="590" y="129"/><di:waypoint x="700" y="129"/></bpmndi:BPMNEdge>
     <bpmndi:BPMNEdge id="epicCoordinationReference_flow_2_edge" bpmnElement="epicCoordinationReference_flow_2"><di:waypoint x="940" y="129"/><di:waypoint x="1110" y="129"/></bpmndi:BPMNEdge>
     <bpmndi:BPMNEdge id="epicCoordinationReference_flow_3_edge" bpmnElement="epicCoordinationReference_flow_3"><di:waypoint x="1170" y="119"/><di:waypoint x="1660" y="119"/><bpmndi:BPMNLabel><dc:Bounds x="1340" y="84" width="210" height="32"/></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
-    <bpmndi:BPMNEdge id="epicCoordinationReference_flow_4_edge" bpmnElement="epicCoordinationReference_flow_4"><di:waypoint x="1170" y="139"/><di:waypoint x="1265" y="139"/><di:waypoint x="1265" y="608.4"/><di:waypoint x="5205" y="608.4"/><di:waypoint x="5205" y="488.8"/><di:waypoint x="5270" y="488.8"/><bpmndi:BPMNLabel><dc:Bounds x="3015" y="611.4" width="210" height="32"/></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="epicCoordinationReference_flow_4_edge" bpmnElement="epicCoordinationReference_flow_4"><di:waypoint x="1170" y="139"/><di:waypoint x="1265" y="139"/><di:waypoint x="1265" y="580"/><di:waypoint x="7565" y="580"/><di:waypoint x="7565" y="454"/><di:waypoint x="7630" y="454"/><bpmndi:BPMNLabel><dc:Bounds x="4325" y="583" width="210" height="32"/></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
     <bpmndi:BPMNEdge id="epicCoordinationReference_flow_5_edge" bpmnElement="epicCoordinationReference_flow_5"><di:waypoint x="1900" y="119"/><di:waypoint x="2010" y="119"/></bpmndi:BPMNEdge>
     <bpmndi:BPMNEdge id="epicCoordinationReference_flow_6_edge" bpmnElement="epicCoordinationReference_flow_6"><di:waypoint x="2250" y="119"/><di:waypoint x="2295" y="119"/><di:waypoint x="2295" y="196"/><di:waypoint x="2442.5" y="196"/></bpmndi:BPMNEdge>
-    <bpmndi:BPMNEdge id="epicCoordinationReference_flow_7_edge" bpmnElement="epicCoordinationReference_flow_7"><di:waypoint x="2502.5" y="211"/><di:waypoint x="2605" y="211"/><di:waypoint x="2605" y="500.4"/><di:waypoint x="3000" y="500.4"/><bpmndi:BPMNLabel><dc:Bounds x="2680" y="503.4" width="210" height="32"/></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="epicCoordinationReference_flow_7_edge" bpmnElement="epicCoordinationReference_flow_7"><di:waypoint x="2502.5" y="211"/><di:waypoint x="2605" y="211"/><di:waypoint x="2605" y="472"/><di:waypoint x="3000" y="472"/><bpmndi:BPMNLabel><dc:Bounds x="2680" y="475" width="210" height="32"/></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
     <bpmndi:BPMNEdge id="epicCoordinationReference_flow_8_edge" bpmnElement="epicCoordinationReference_flow_8"><di:waypoint x="2502.5" y="181"/><di:waypoint x="2925" y="181"/><di:waypoint x="2925" y="127"/><di:waypoint x="3000" y="127"/><bpmndi:BPMNLabel><dc:Bounds x="2680" y="184" width="210" height="32"/></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
     <bpmndi:BPMNEdge id="epicCoordinationReference_flow_9_edge" bpmnElement="epicCoordinationReference_flow_9"><di:waypoint x="3000" y="95"/><di:waypoint x="2250" y="95"/><bpmndi:BPMNLabel><dc:Bounds x="2360" y="60" width="210" height="32"/></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
     <bpmndi:BPMNEdge id="epicCoordinationReference_flow_10_edge" bpmnElement="epicCoordinationReference_flow_10"><di:waypoint x="2502.5" y="196"/><di:waypoint x="2615" y="196"/><di:waypoint x="2615" y="277"/><di:waypoint x="3000" y="277"/><bpmndi:BPMNLabel><dc:Bounds x="2680" y="280" width="210" height="32"/></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
-    <bpmndi:BPMNEdge id="epicCoordinationReference_flow_11_edge" bpmnElement="epicCoordinationReference_flow_11"><di:waypoint x="3240" y="500.4"/><di:waypoint x="3410" y="500.4"/></bpmndi:BPMNEdge>
-    <bpmndi:BPMNEdge id="epicCoordinationReference_flow_12_edge" bpmnElement="epicCoordinationReference_flow_12"><di:waypoint x="3410" y="520.4"/><di:waypoint x="3275" y="520.4"/><di:waypoint x="3275" y="560.4"/><di:waypoint x="2285" y="560.4"/><di:waypoint x="2285" y="143"/><di:waypoint x="2250" y="143"/><bpmndi:BPMNLabel><dc:Bounds x="2680" y="563.4" width="210" height="34"/></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
-    <bpmndi:BPMNEdge id="epicCoordinationReference_flow_13_edge" bpmnElement="epicCoordinationReference_flow_13"><di:waypoint x="3470" y="510.4"/><di:waypoint x="5195" y="510.4"/><di:waypoint x="5195" y="469.6"/><di:waypoint x="5270" y="469.6"/><bpmndi:BPMNLabel><dc:Bounds x="4325" y="513.4" width="210" height="32"/></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="epicCoordinationReference_flow_11_edge" bpmnElement="epicCoordinationReference_flow_11"><di:waypoint x="3240" y="472"/><di:waypoint x="3410" y="472"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="epicCoordinationReference_flow_12_edge" bpmnElement="epicCoordinationReference_flow_12"><di:waypoint x="3410" y="492"/><di:waypoint x="3275" y="492"/><di:waypoint x="3275" y="532"/><di:waypoint x="2285" y="532"/><di:waypoint x="2285" y="143"/><di:waypoint x="2250" y="143"/><bpmndi:BPMNLabel><dc:Bounds x="2680" y="535" width="210" height="34"/></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="epicCoordinationReference_flow_13_edge" bpmnElement="epicCoordinationReference_flow_13"><di:waypoint x="3470" y="482"/><di:waypoint x="7555" y="482"/><di:waypoint x="7555" y="438"/><di:waypoint x="7630" y="438"/><bpmndi:BPMNLabel><dc:Bounds x="5360" y="485" width="210" height="32"/></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
     <bpmndi:BPMNEdge id="epicCoordinationReference_flow_14_edge" bpmnElement="epicCoordinationReference_flow_14"><di:waypoint x="3240" y="277"/><di:waypoint x="3410" y="277"/></bpmndi:BPMNEdge>
     <bpmndi:BPMNEdge id="epicCoordinationReference_flow_15_edge" bpmnElement="epicCoordinationReference_flow_15"><di:waypoint x="3470" y="267"/><di:waypoint x="3960" y="267"/><bpmndi:BPMNLabel><dc:Bounds x="3640" y="232" width="210" height="32"/></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
-    <bpmndi:BPMNEdge id="epicCoordinationReference_flow_16_edge" bpmnElement="epicCoordinationReference_flow_16"><di:waypoint x="3470" y="287"/><di:waypoint x="3565" y="287"/><di:waypoint x="3565" y="450.4"/><di:waypoint x="5270" y="450.4"/><bpmndi:BPMNLabel><dc:Bounds x="4325" y="453.4" width="210" height="32"/></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
-    <bpmndi:BPMNEdge id="epicCoordinationReference_flow_17_edge" bpmnElement="epicCoordinationReference_flow_17"><di:waypoint x="4200" y="267"/><di:waypoint x="4310" y="267"/></bpmndi:BPMNEdge>
-    <bpmndi:BPMNEdge id="epicCoordinationReference_flow_18_edge" bpmnElement="epicCoordinationReference_flow_18"><di:waypoint x="4550" y="267"/><di:waypoint x="4720" y="267"/></bpmndi:BPMNEdge>
-    <bpmndi:BPMNEdge id="epicCoordinationReference_flow_19_edge" bpmnElement="epicCoordinationReference_flow_19"><di:waypoint x="4780" y="257"/><di:waypoint x="5330" y="257"/><bpmndi:BPMNLabel><dc:Bounds x="4950" y="260" width="210" height="32"/></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
-    <bpmndi:BPMNEdge id="epicCoordinationReference_flow_20_edge" bpmnElement="epicCoordinationReference_flow_20"><di:waypoint x="4780" y="277"/><di:waypoint x="4875" y="277"/><di:waypoint x="4875" y="317"/><di:waypoint x="5195" y="317"/><di:waypoint x="5195" y="431.2"/><di:waypoint x="5270" y="431.2"/><bpmndi:BPMNLabel><dc:Bounds x="4950" y="320" width="210" height="32"/></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
-    <bpmndi:BPMNEdge id="epicCoordinationReference_flow_21_edge" bpmnElement="epicCoordinationReference_flow_21"><di:waypoint x="5510" y="460"/><di:waypoint x="5680" y="460"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="epicCoordinationReference_flow_16_edge" bpmnElement="epicCoordinationReference_flow_16"><di:waypoint x="3470" y="287"/><di:waypoint x="3565" y="287"/><di:waypoint x="3565" y="422"/><di:waypoint x="7630" y="422"/><bpmndi:BPMNLabel><dc:Bounds x="5360" y="425" width="210" height="32"/></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="epicCoordinationReference_flow_17_edge" bpmnElement="epicCoordinationReference_flow_17"><di:waypoint x="4900" y="267"/><di:waypoint x="5010" y="267"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="epicCoordinationReference_flow_18_edge" bpmnElement="epicCoordinationReference_flow_18"><di:waypoint x="5250" y="267"/><di:waypoint x="5440" y="267"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="epicCoordinationReference_flow_19_edge" bpmnElement="epicCoordinationReference_flow_19"><di:waypoint x="5500" y="257"/><di:waypoint x="6000" y="257"/><bpmndi:BPMNLabel><dc:Bounds x="5680" y="222" width="210" height="32"/></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="epicCoordinationReference_flow_20_edge" bpmnElement="epicCoordinationReference_flow_20"><di:waypoint x="5500" y="277"/><di:waypoint x="5605" y="277"/><di:waypoint x="5605" y="357"/><di:waypoint x="7555" y="357"/><di:waypoint x="7555" y="406"/><di:waypoint x="7630" y="406"/><bpmndi:BPMNLabel><dc:Bounds x="6350" y="360" width="210" height="32"/></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="epicCoordinationReference_flow_21_edge" bpmnElement="epicCoordinationReference_flow_21"><di:waypoint x="7870" y="422"/><di:waypoint x="8040" y="422"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="epicCoordinationReference_flow_22_edge" bpmnElement="epicCoordinationReference_flow_22"><di:waypoint x="4200" y="267"/><di:waypoint x="4310" y="267"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="epicCoordinationReference_flow_23_edge" bpmnElement="epicCoordinationReference_flow_23"><di:waypoint x="4550" y="267"/><di:waypoint x="4660" y="267"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="epicCoordinationReference_flow_24_edge" bpmnElement="epicCoordinationReference_flow_24"><di:waypoint x="6240" y="257"/><di:waypoint x="6670" y="257"/><bpmndi:BPMNLabel><dc:Bounds x="6350" y="260" width="210" height="34"/></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="epicCoordinationReference_flow_25_edge" bpmnElement="epicCoordinationReference_flow_25"><di:waypoint x="6910" y="257"/><di:waypoint x="7080" y="257"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="epicCoordinationReference_flow_26_edge" bpmnElement="epicCoordinationReference_flow_26"><di:waypoint x="7140" y="247"/><di:waypoint x="7630" y="247"/><bpmndi:BPMNLabel><dc:Bounds x="7310" y="250" width="210" height="34"/></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="epicCoordinationReference_flow_27_edge" bpmnElement="epicCoordinationReference_flow_27"><di:waypoint x="7140" y="267"/><di:waypoint x="7235" y="267"/><di:waypoint x="7235" y="309"/><di:waypoint x="7565" y="309"/><di:waypoint x="7565" y="390"/><di:waypoint x="7630" y="390"/><bpmndi:BPMNLabel><dc:Bounds x="7310" y="312" width="210" height="34"/></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="epicCoordinationReference_flow_28_edge" bpmnElement="epicCoordinationReference_flow_28"><di:waypoint x="7870" y="247"/><di:waypoint x="8360" y="247"/><bpmndi:BPMNLabel><dc:Bounds x="7980" y="210" width="210" height="34"/></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
   </bpmndi:BPMNPlane></bpmndi:BPMNDiagram>
   <bpmndi:BPMNDiagram id="storyDeliveryReference_diagram"><bpmndi:BPMNPlane id="storyDeliveryReference_plane" bpmnElement="storyDeliveryReference">
     <bpmndi:BPMNShape id="storyStart_shape" bpmnElement="storyStart" bioc:fill="#f1f5f9" bioc:stroke="#475569"><dc:Bounds x="120" y="88" width="60" height="60"/><bpmndi:BPMNLabel><dc:Bounds x="60" y="153" width="180" height="50"/></bpmndi:BPMNLabel></bpmndi:BPMNShape>
@@ -214,5 +288,52 @@
     <bpmndi:BPMNEdge id="reviewMergeReference_flow_20_edge" bpmnElement="reviewMergeReference_flow_20"><di:waypoint x="1858.75" y="457"/><di:waypoint x="1965" y="457"/><di:waypoint x="1965" y="771"/><di:waypoint x="2420" y="771"/><bpmndi:BPMNLabel><dc:Bounds x="2040" y="774" width="210" height="34"/></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
     <bpmndi:BPMNEdge id="reviewMergeReference_flow_21_edge" bpmnElement="reviewMergeReference_flow_21"><di:waypoint x="1858.75" y="437"/><di:waypoint x="4080" y="437"/><bpmndi:BPMNLabel><dc:Bounds x="2725" y="440" width="210" height="34"/></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
     <bpmndi:BPMNEdge id="reviewMergeReference_flow_22_edge" bpmnElement="reviewMergeReference_flow_22"><di:waypoint x="4320" y="413"/><di:waypoint x="4490" y="413"/></bpmndi:BPMNEdge>
+  </bpmndi:BPMNPlane></bpmndi:BPMNDiagram>
+  <bpmndi:BPMNDiagram id="hotfixDeliveryReference_diagram"><bpmndi:BPMNPlane id="hotfixDeliveryReference_plane" bpmnElement="hotfixDeliveryReference">
+    <bpmndi:BPMNShape id="hotfixRequested_shape" bpmnElement="hotfixRequested" bioc:fill="#f1f5f9" bioc:stroke="#475569"><dc:Bounds x="120" y="128" width="60" height="60"/><bpmndi:BPMNLabel><dc:Bounds x="60" y="193" width="180" height="50"/></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="assessHotfix_shape" bpmnElement="assessHotfix" bioc:fill="#f1f5f9" bioc:stroke="#475569"><dc:Bounds x="350" y="110" width="240" height="96"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="awaitHotfixApproval_shape" bpmnElement="awaitHotfixApproval" bioc:fill="#fef3c7" bioc:stroke="#92400e"><dc:Bounds x="700" y="110" width="240" height="96"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="hotfixApproved_shape" bpmnElement="hotfixApproved" bioc:fill="#f1f5f9" bioc:stroke="#475569"><dc:Bounds x="1110" y="128" width="60" height="60"/><bpmndi:BPMNLabel><dc:Bounds x="1050" y="193" width="180" height="50"/></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="reserveHotfix_shape" bpmnElement="reserveHotfix" bioc:fill="#f1f5f9" bioc:stroke="#475569"><dc:Bounds x="1660" y="100" width="240" height="96"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="hotfixBaseReady_shape" bpmnElement="hotfixBaseReady" bioc:fill="#f1f5f9" bioc:stroke="#475569"><dc:Bounds x="2070" y="118" width="60" height="60"/><bpmndi:BPMNLabel><dc:Bounds x="2010" y="183" width="180" height="50"/></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="createHotfix_shape" bpmnElement="createHotfix" bioc:fill="#f1f5f9" bioc:stroke="#475569"><dc:Bounds x="2620" y="90" width="240" height="96"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="implementHotfix_shape" bpmnElement="implementHotfix" bioc:fill="#ede9fe" bioc:stroke="#6d28d9"><dc:Bounds x="2970" y="90" width="240" height="96"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="awaitHotfixOutcome_shape" bpmnElement="awaitHotfixOutcome" bioc:fill="#f1f5f9" bioc:stroke="#475569"><dc:Bounds x="3320" y="90" width="240" height="96"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="hotfixTests_shape" bpmnElement="hotfixTests" bioc:fill="#f1f5f9" bioc:stroke="#475569"><dc:Bounds x="3730" y="108" width="60" height="60"/><bpmndi:BPMNLabel><dc:Bounds x="3670" y="173" width="180" height="50"/></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="publishHotfixPR_shape" bpmnElement="publishHotfixPR" bioc:fill="#f1f5f9" bioc:stroke="#475569"><dc:Bounds x="4280" y="80" width="240" height="96"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="reviewHotfix_shape" bpmnElement="reviewHotfix" bioc:fill="#f1f5f9" bioc:stroke="#475569"><dc:Bounds x="4630" y="80" width="240" height="96"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="hotfixMerge_shape" bpmnElement="hotfixMerge" bioc:fill="#f1f5f9" bioc:stroke="#475569"><dc:Bounds x="5040" y="98" width="60" height="60"/><bpmndi:BPMNLabel><dc:Bounds x="4980" y="163" width="180" height="50"/></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="awaitHotfixReleaseApproval_shape" bpmnElement="awaitHotfixReleaseApproval" bioc:fill="#fef3c7" bioc:stroke="#92400e"><dc:Bounds x="5590" y="70" width="240" height="96"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="verifyHotfixRelease_shape" bpmnElement="verifyHotfixRelease" bioc:fill="#f1f5f9" bioc:stroke="#475569"><dc:Bounds x="6260" y="70" width="240" height="96"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="hotfixReleaseReady_shape" bpmnElement="hotfixReleaseReady" bioc:fill="#f1f5f9" bioc:stroke="#475569"><dc:Bounds x="6670" y="88" width="60" height="60"/><bpmndi:BPMNLabel><dc:Bounds x="6610" y="153" width="180" height="50"/></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="tagHotfix_shape" bpmnElement="tagHotfix" bioc:fill="#f1f5f9" bioc:stroke="#475569"><dc:Bounds x="7220" y="60" width="240" height="96"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="propagateHotfix_shape" bpmnElement="propagateHotfix" bioc:fill="#f1f5f9" bioc:stroke="#475569"><dc:Bounds x="7890" y="60" width="240" height="96"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="hotfixComplete_shape" bpmnElement="hotfixComplete" bioc:fill="#f1f5f9" bioc:stroke="#475569"><dc:Bounds x="8300" y="78" width="60" height="60"/><bpmndi:BPMNLabel><dc:Bounds x="8240" y="143" width="180" height="50"/></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="hotfixHold_shape" bpmnElement="hotfixHold" bioc:fill="#fef3c7" bioc:stroke="#92400e"><dc:Bounds x="7220" y="226" width="240" height="96"/></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="hotfixHeld_shape" bpmnElement="hotfixHeld" bioc:fill="#f1f5f9" bioc:stroke="#475569"><dc:Bounds x="7630" y="244" width="60" height="60"/><bpmndi:BPMNLabel><dc:Bounds x="7570" y="309" width="180" height="50"/></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+    <bpmndi:BPMNEdge id="hotfixDeliveryReference_flow_0_edge" bpmnElement="hotfixDeliveryReference_flow_0"><di:waypoint x="180" y="158"/><di:waypoint x="350" y="158"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="hotfixDeliveryReference_flow_1_edge" bpmnElement="hotfixDeliveryReference_flow_1"><di:waypoint x="590" y="158"/><di:waypoint x="700" y="158"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="hotfixDeliveryReference_flow_2_edge" bpmnElement="hotfixDeliveryReference_flow_2"><di:waypoint x="940" y="158"/><di:waypoint x="1110" y="158"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="hotfixDeliveryReference_flow_3_edge" bpmnElement="hotfixDeliveryReference_flow_3"><di:waypoint x="1170" y="148"/><di:waypoint x="1660" y="148"/><bpmndi:BPMNLabel><dc:Bounds x="1340" y="111" width="210" height="34"/></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="hotfixDeliveryReference_flow_4_edge" bpmnElement="hotfixDeliveryReference_flow_4"><di:waypoint x="1170" y="168"/><di:waypoint x="1265" y="168"/><di:waypoint x="1265" y="368"/><di:waypoint x="7155" y="368"/><di:waypoint x="7155" y="306"/><di:waypoint x="7220" y="306"/><bpmndi:BPMNLabel><dc:Bounds x="3960" y="371" width="210" height="34"/></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="hotfixDeliveryReference_flow_5_edge" bpmnElement="hotfixDeliveryReference_flow_5"><di:waypoint x="1900" y="148"/><di:waypoint x="2070" y="148"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="hotfixDeliveryReference_flow_6_edge" bpmnElement="hotfixDeliveryReference_flow_6"><di:waypoint x="2130" y="138"/><di:waypoint x="2620" y="138"/><bpmndi:BPMNLabel><dc:Bounds x="2300" y="101" width="210" height="34"/></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="hotfixDeliveryReference_flow_7_edge" bpmnElement="hotfixDeliveryReference_flow_7"><di:waypoint x="2130" y="158"/><di:waypoint x="2225" y="158"/><di:waypoint x="2225" y="320"/><di:waypoint x="7145" y="320"/><di:waypoint x="7145" y="290"/><di:waypoint x="7220" y="290"/><bpmndi:BPMNLabel><dc:Bounds x="4645" y="323" width="210" height="34"/></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="hotfixDeliveryReference_flow_8_edge" bpmnElement="hotfixDeliveryReference_flow_8"><di:waypoint x="2860" y="138"/><di:waypoint x="2970" y="138"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="hotfixDeliveryReference_flow_9_edge" bpmnElement="hotfixDeliveryReference_flow_9"><di:waypoint x="3210" y="138"/><di:waypoint x="3320" y="138"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="hotfixDeliveryReference_flow_10_edge" bpmnElement="hotfixDeliveryReference_flow_10"><di:waypoint x="3560" y="138"/><di:waypoint x="3730" y="138"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="hotfixDeliveryReference_flow_11_edge" bpmnElement="hotfixDeliveryReference_flow_11"><di:waypoint x="3790" y="128"/><di:waypoint x="4280" y="128"/><bpmndi:BPMNLabel><dc:Bounds x="3960" y="131" width="210" height="32"/></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="hotfixDeliveryReference_flow_12_edge" bpmnElement="hotfixDeliveryReference_flow_12"><di:waypoint x="3790" y="148"/><di:waypoint x="3885" y="148"/><di:waypoint x="3885" y="274"/><di:waypoint x="7220" y="274"/><bpmndi:BPMNLabel><dc:Bounds x="5270" y="277" width="210" height="32"/></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="hotfixDeliveryReference_flow_13_edge" bpmnElement="hotfixDeliveryReference_flow_13"><di:waypoint x="4520" y="128"/><di:waypoint x="4630" y="128"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="hotfixDeliveryReference_flow_14_edge" bpmnElement="hotfixDeliveryReference_flow_14"><di:waypoint x="4870" y="128"/><di:waypoint x="5040" y="128"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="hotfixDeliveryReference_flow_15_edge" bpmnElement="hotfixDeliveryReference_flow_15"><di:waypoint x="5100" y="118"/><di:waypoint x="5590" y="118"/><bpmndi:BPMNLabel><dc:Bounds x="5270" y="121" width="210" height="34"/></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="hotfixDeliveryReference_flow_16_edge" bpmnElement="hotfixDeliveryReference_flow_16"><di:waypoint x="5100" y="138"/><di:waypoint x="5195" y="138"/><di:waypoint x="5195" y="218"/><di:waypoint x="7145" y="218"/><di:waypoint x="7145" y="258"/><di:waypoint x="7220" y="258"/><bpmndi:BPMNLabel><dc:Bounds x="5940" y="221" width="210" height="32"/></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="hotfixDeliveryReference_flow_17_edge" bpmnElement="hotfixDeliveryReference_flow_17"><di:waypoint x="5830" y="118"/><di:waypoint x="6260" y="118"/><bpmndi:BPMNLabel><dc:Bounds x="5940" y="121" width="210" height="34"/></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="hotfixDeliveryReference_flow_18_edge" bpmnElement="hotfixDeliveryReference_flow_18"><di:waypoint x="6500" y="118"/><di:waypoint x="6670" y="118"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="hotfixDeliveryReference_flow_19_edge" bpmnElement="hotfixDeliveryReference_flow_19"><di:waypoint x="6730" y="108"/><di:waypoint x="7220" y="108"/><bpmndi:BPMNLabel><dc:Bounds x="6900" y="111" width="210" height="34"/></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="hotfixDeliveryReference_flow_20_edge" bpmnElement="hotfixDeliveryReference_flow_20"><di:waypoint x="6730" y="128"/><di:waypoint x="6825" y="128"/><di:waypoint x="6825" y="170"/><di:waypoint x="7155" y="170"/><di:waypoint x="7155" y="242"/><di:waypoint x="7220" y="242"/><bpmndi:BPMNLabel><dc:Bounds x="6900" y="173" width="210" height="34"/></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="hotfixDeliveryReference_flow_21_edge" bpmnElement="hotfixDeliveryReference_flow_21"><di:waypoint x="7460" y="108"/><di:waypoint x="7890" y="108"/><bpmndi:BPMNLabel><dc:Bounds x="7570" y="71" width="210" height="34"/></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="hotfixDeliveryReference_flow_22_edge" bpmnElement="hotfixDeliveryReference_flow_22"><di:waypoint x="8130" y="108"/><di:waypoint x="8300" y="108"/></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="hotfixDeliveryReference_flow_23_edge" bpmnElement="hotfixDeliveryReference_flow_23"><di:waypoint x="7460" y="274"/><di:waypoint x="7630" y="274"/></bpmndi:BPMNEdge>
   </bpmndi:BPMNPlane></bpmndi:BPMNDiagram>
 </definitions>

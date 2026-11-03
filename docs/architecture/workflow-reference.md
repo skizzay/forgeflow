@@ -3,20 +3,22 @@
 Tracks [#100](https://github.com/skizzay/forgeflow/issues/100).
 [Download/open the BPMN model](workflows/development-lifecycle.bpmn20.xml).
 
-**Proposed architecture reference, not an executable workflow.** All three BPMN
+**Proposed architecture reference, not an executable workflow.** All four BPMN
 processes have `isExecutable="false"`; the file lives outside runtime resources
 and is never registered by ForgeFlow. Tasks, decisions and call outcomes describe
 required responsibilities, not implemented delegates, expressions or IO mappings.
 The BPMN includes a routed layout with orthogonal connectors and explicit labels.
-It contains three diagrams; viewers that open only the first show epic coordination.
-Select the story or review process diagram to inspect the other two views.
+It contains four diagrams; viewers that open only the first show epic coordination.
+Select the story, review or hotfix process diagram to inspect the other two views.
 BPMN colors use the common bpmn.io `bioc` extension; viewers without color support
 can still display the standard shapes and labels.
 
 The Mermaid views below use the same node IDs, edge labels and sequence flows as
 the BPMN processes. A call activity invokes the named reference process; it does
 not create another unrelated ticket process. The review/merge process is shared
-by story-to-epic and epic-to-main PRs, with their distinct human approval bindings.
+by story-to-epic, release-to-main and hotfix-to-main PRs, with distinct approval bindings.
+The [main-only GitFlow and versioning contract](../requirements/branching-and-versioning.md)
+defines branch bases, SemVer selection, tags and hotfix propagation.
 
 ## Flowable and IDE compatibility
 
@@ -65,7 +67,7 @@ flowchart TD
     planWork["Read ticket and draft validated plan"]
     awaitPlanApproval["Wait for explicit human plan decision"]
     planDecision{"Plan approved?"}
-    prepareEpic["Prepare epic branch from approved main"]
+    prepareEpic["Create epic/ISSUE from approved main commit"]
     selectStory["Select dependency-ready story"]
     storyEligibility{"Story eligibility?"}
     awaitDependency["Wait for ticket or verified dependency merge"]
@@ -73,10 +75,16 @@ flowchart TD
     storyResult{"Story result?"}
     verifyEpic["Verify epic acceptance and architecture"]
     epicChecks{"Epic checks passed?"}
-    publishEpicPR["Publish epic-to-main PR"]
+    reserveRelease["Classify SemVer change and reserve unused release version"]
+    prepareRelease["Create release/X.Y.Z from tested epic head"]
+    publishEpicPR["Publish release/X.Y.Z to main PR"]
     reviewEpic[["Review epic PR and obtain final human merge approval"]]
     epicResult{"Final PR result?"}
-    epicComplete(["Verified epic-to-main merge"])
+    awaitReleaseApproval["Wait for human approval of version and merged release commit"]
+    verifyRelease["Revalidate version reservation and exact approved main commit"]
+    releaseReady{"Release evidence current?"}
+    tagRelease["Publish immutable vX.Y.Z tag for approved main commit"]
+    epicComplete(["Verified normal release and immutable version tag"])
     epicHold["Hold and escalate to human"]
     epicHeld(["Held; no automatic continuation"])
     ticketReceived --> planWork
@@ -94,19 +102,26 @@ flowchart TD
     storyResult -->|"verified merged; unlock dependents"| selectStory
     storyResult -->|"closed or held"| epicHold
     verifyEpic --> epicChecks
-    epicChecks -->|"passed"| publishEpicPR
+    epicChecks -->|"passed"| reserveRelease
     epicChecks -->|"failed or unknown"| epicHold
     publishEpicPR --> reviewEpic
     reviewEpic --> epicResult
-    epicResult -->|"verified authorized merge"| epicComplete
+    epicResult -->|"verified authorized merge"| awaitReleaseApproval
     epicResult -->|"closed or held"| epicHold
     epicHold --> epicHeld
+    reserveRelease --> prepareRelease
+    prepareRelease --> publishEpicPR
+    awaitReleaseApproval -->|"authenticated release authorization"| verifyRelease
+    verifyRelease --> releaseReady
+    releaseReady -->|"exact approved commit and unused version"| tagRelease
+    releaseReady -->|"changed base or collision or uncertain"| epicHold
+    tagRelease -->|"verified tag identity; reconcile unknown outcome"| epicComplete
     classDef agent fill:#ede9fe,stroke:#6d28d9,color:#111827,stroke-width:2px;
     classDef human fill:#fef3c7,stroke:#92400e,color:#111827,stroke-width:2px;
-    classDef automated fill:#f1f5f9,stroke:#475569,color:#111827;
+    classDef automated fill:#f1f5f9,stroke:#475569,color:#111827,stroke-width:2px;
     class planWork,verifyEpic agent;
-    class awaitPlanApproval,epicHold human;
-    class awaitDependency,deliverStory,epicChecks,epicComplete,epicHeld,epicResult,planDecision,prepareEpic,publishEpicPR,reviewEpic,selectStory,storyEligibility,storyResult,ticketReceived automated;
+    class awaitPlanApproval,awaitReleaseApproval,epicHold human;
+    class awaitDependency,deliverStory,epicChecks,epicComplete,epicHeld,epicResult,planDecision,prepareEpic,prepareRelease,publishEpicPR,releaseReady,reserveRelease,reviewEpic,selectStory,storyEligibility,storyResult,tagRelease,ticketReceived,verifyRelease automated;
 ```
 
 ## Story delivery
@@ -114,7 +129,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     storyStart(["Approved eligible story"])
-    prepareStoryBranch["Prepare fresh story branch from epic"]
+    prepareStoryBranch["Create feature/EPIC-STORY from fresh approved epic head"]
     dispatchImplementation["Dispatch isolated coding and testing"]
     awaitImplementation["Wait for accepted fenced worker outcome"]
     implementationResult{"Verified tests passed?"}
@@ -134,7 +149,7 @@ flowchart TD
     storyHold --> storyHeld
     classDef agent fill:#ede9fe,stroke:#6d28d9,color:#111827,stroke-width:2px;
     classDef human fill:#fef3c7,stroke:#92400e,color:#111827,stroke-width:2px;
-    classDef automated fill:#f1f5f9,stroke:#475569,color:#111827;
+    classDef automated fill:#f1f5f9,stroke:#475569,color:#111827,stroke-width:2px;
     class dispatchImplementation agent;
     class storyHold human;
     class awaitImplementation,implementationResult,prepareStoryBranch,publishStoryPR,reviewStory,storyFinished,storyHeld,storyStart automated;
@@ -144,7 +159,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    reviewStart(["Bound story or epic PR"])
+    reviewStart(["Bound story release or hotfix PR"])
     requestReview["Request Copilot or configured reviewer for current head"]
     awaitReviewEvent["Wait for verified correlated observation"]
     inspectReview["Read authoritative review checks head closure and approval"]
@@ -186,10 +201,67 @@ flowchart TD
     reviewHold --> reviewHeld
     classDef agent fill:#ede9fe,stroke:#6d28d9,color:#111827,stroke-width:2px;
     classDef human fill:#fef3c7,stroke:#92400e,color:#111827,stroke-width:2px;
-    classDef automated fill:#f1f5f9,stroke:#475569,color:#111827;
+    classDef automated fill:#f1f5f9,stroke:#475569,color:#111827,stroke-width:2px;
     class dispatchRemediation agent;
     class awaitMergeApproval,reviewHold human;
     class awaitRemediation,awaitReviewEvent,inspectReview,mergeGuards,publishRemediation,remediationResult,requestMerge,requestReview,revalidateMerge,reviewClosed,reviewDecision,reviewHeld,reviewMerged,reviewStart automated;
+```
+
+## Hotfix delivery
+
+```mermaid
+flowchart TD
+    hotfixRequested(["Verified hotfix ticket; no epic required"])
+    assessHotfix["Pin latest released main tag and assess PATCH compatibility"]
+    awaitHotfixApproval["Wait for human approval of hotfix scope and release base"]
+    hotfixApproved{"Hotfix authorized?"}
+    reserveHotfix["Reserve next unused PATCH version"]
+    hotfixBaseReady{"Approved released main base still current?"}
+    createHotfix["Create hotfix/X.Y.Z from approved released main commit"]
+    implementHotfix["Dispatch agent hotfix implementation and regression tests"]
+    awaitHotfixOutcome["Wait for accepted fenced hotfix outcome"]
+    hotfixTests{"Hotfix tests passed for exact head?"}
+    publishHotfixPR["Publish hotfix/X.Y.Z to main PR"]
+    reviewHotfix[["Review hotfix PR and obtain human merge approval"]]
+    hotfixMerge{"Hotfix merge result?"}
+    awaitHotfixReleaseApproval["Wait for human approval of patch version and merged commit"]
+    verifyHotfixRelease["Revalidate PATCH reservation and exact approved main commit"]
+    hotfixReleaseReady{"Patch release evidence current?"}
+    tagHotfix["Publish immutable vX.Y.Z tag"]
+    propagateHotfix["Track reviewed propagation PRs into active epic and release branches"]
+    hotfixComplete(["Patch released; propagation tracked separately"])
+    hotfixHold["Hold and escalate; reconcile release conflicts"]
+    hotfixHeld(["Held; no automatic continuation"])
+    hotfixRequested --> assessHotfix
+    assessHotfix --> awaitHotfixApproval
+    awaitHotfixApproval --> hotfixApproved
+    hotfixApproved -->|"approved compatible bug fix on latest supported release"| reserveHotfix
+    hotfixApproved -->|"rejected or incompatible or older release line"| hotfixHold
+    reserveHotfix --> hotfixBaseReady
+    hotfixBaseReady -->|"main equals pinned release; version unused"| createHotfix
+    hotfixBaseReady -->|"main drift or competing release"| hotfixHold
+    createHotfix --> implementHotfix
+    implementHotfix --> awaitHotfixOutcome
+    awaitHotfixOutcome --> hotfixTests
+    hotfixTests -->|"passed"| publishHotfixPR
+    hotfixTests -->|"failed or uncertain"| hotfixHold
+    publishHotfixPR --> reviewHotfix
+    reviewHotfix --> hotfixMerge
+    hotfixMerge -->|"verified authorized exact merge"| awaitHotfixReleaseApproval
+    hotfixMerge -->|"closed or held"| hotfixHold
+    awaitHotfixReleaseApproval -->|"authenticated release authorization"| verifyHotfixRelease
+    verifyHotfixRelease --> hotfixReleaseReady
+    hotfixReleaseReady -->|"exact approved commit and unused PATCH version"| tagHotfix
+    hotfixReleaseReady -->|"changed commit or collision or uncertain"| hotfixHold
+    tagHotfix -->|"verified tag identity; reconcile unknown outcome"| propagateHotfix
+    propagateHotfix --> hotfixComplete
+    hotfixHold --> hotfixHeld
+    classDef agent fill:#ede9fe,stroke:#6d28d9,color:#111827,stroke-width:2px;
+    classDef human fill:#fef3c7,stroke:#92400e,color:#111827,stroke-width:2px;
+    classDef automated fill:#f1f5f9,stroke:#475569,color:#111827,stroke-width:2px;
+    class implementHotfix agent;
+    class awaitHotfixApproval,awaitHotfixReleaseApproval,hotfixHold human;
+    class assessHotfix,awaitHotfixOutcome,createHotfix,hotfixApproved,hotfixBaseReady,hotfixComplete,hotfixHeld,hotfixMerge,hotfixReleaseReady,hotfixRequested,hotfixTests,propagateHotfix,publishHotfixPR,reserveHotfix,reviewHotfix,tagHotfix,verifyHotfixRelease automated;
 ```
 
 ## Events, authority and recovery
@@ -227,7 +299,7 @@ flowchart TD
 Verified ingress/classification, lifecycle guards, manual approval and the opt-in
 atomic approved-story starter exist. That packaged process only queues its first
 job and waits. The intake, planning/DAG scheduling, worker execution, publication,
-review webhook loop and final integration above span later roadmap work and are
+review webhook loop hotfix/release handling and final integration above span later roadmap work and are
 not delivered by this reference. #84 owns the next inbox-to-starter integration;
 #93 owns repository-specific workflow configuration. See the
 [provider/workflow boundaries](workflow-boundaries.md) and
@@ -248,7 +320,7 @@ docker compose -p forgeflow-reference-check down --volumes --remove-orphans
 The check validates BPMN XML against Flowable's bundled BPMN schema, resolves
 sequence/call references, checks diagram coverage and orthogonal connectors, and compares Mermaid nodes,
 labels and edges. Mermaid syntax is also parsed during this change's verification.
-All three BPMN diagrams were also rendered in bpmn-js without import warnings,
+All four BPMN diagrams were also rendered in bpmn-js without import warnings,
 and the actor colors were checked in that viewer. Layout and color support can
 vary across editors; diagram selection and zoom may be needed. These checks do
 not establish executable process behavior. No reference process is deployed.
