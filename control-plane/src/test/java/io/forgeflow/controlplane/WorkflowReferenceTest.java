@@ -10,6 +10,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
+import javax.xml.parsers.DocumentBuilderFactory;
 import org.flowable.bpmn.converter.BpmnXMLConverter;
 import org.flowable.bpmn.model.CallActivity;
 import org.flowable.bpmn.model.FlowNode;
@@ -18,6 +19,7 @@ import org.flowable.bpmn.model.SequenceFlow;
 import org.flowable.bpmn.model.StartEvent;
 import org.flowable.bpmn.model.Task;
 import org.junit.jupiter.api.Test;
+import org.w3c.dom.Element;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -29,7 +31,7 @@ class WorkflowReferenceTest {
         var converter = new BpmnXMLConverter();
         var model = converter.convertToBpmnModel(() -> new ByteArrayInputStream(xml), true, true);
         var processes = model.getProcesses().stream().map(process -> process.getId()).toList();
-        assertThat(processes).containsExactlyInAnyOrder("epicCoordinationReference", "storyDeliveryReference", "reviewMergeReference", "hotfixDeliveryReference");
+        assertThat(processes).containsExactlyInAnyOrder("epicCoordinationReference", "storyDeliveryReference", "reviewMergeReference", "hotfixDeliveryReference", "skillImprovementReference");
         Map<String, String> bpmnNodes = new HashMap<>();
         Set<String> bpmnEdges = new HashSet<>();
         for (var process : model.getProcesses()) {
@@ -63,6 +65,37 @@ class WorkflowReferenceTest {
                 bpmnEdges.add(edge(flow.getSourceRef(), flow.getName(), flow.getTargetRef()));
             }
         }
+        var factory = DocumentBuilderFactory.newInstance();
+        factory.setNamespaceAware(true);
+        factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+        var document = factory.newDocumentBuilder().parse(new ByteArrayInputStream(xml));
+        String namespace = "http://www.omg.org/spec/BPMN/20100524/MODEL";
+        var stores = document.getElementsByTagNameNS(namespace, "dataStoreReference");
+        assertThat(stores.getLength()).isEqualTo(2);
+        for (int i = 0; i < stores.getLength(); i++) {
+            var store = (Element) stores.item(i);
+            assertThat(store.getAttribute("dataStoreRef")).isEqualTo("agentFeedbackData");
+            bpmnNodes.put(store.getAttribute("id"), store.getAttribute("name"));
+            assertThat(model.getGraphicInfo(store.getAttribute("id"))).isNotNull();
+        }
+        var associations = document.getElementsByTagNameNS(namespace, "association");
+        for (int i = 0; i < associations.getLength(); i++) {
+            var association = (Element) associations.item(i);
+            bpmnEdges.add(edge(association.getAttribute("sourceRef"), null, association.getAttribute("targetRef")));
+            assertThat(model.getFlowLocationGraphicInfo(association.getAttribute("id"))).hasSizeGreaterThanOrEqualTo(2);
+        }
+        var review = model.getProcessById("reviewMergeReference");
+        assertThat(reaches(review, "reviewStart", "requestMerge", "")).isTrue();
+        for (String gate : Set.of("qaDecision", "recordQAFeedback", "requestAgentReviews", "recordAgentFeedback", "awaitHumanReview", "recordHumanFeedback", "mergeGuards")) {
+            assertThat(reaches(review, "reviewStart", "requestMerge", gate)).as("Review cannot bypass %s", gate).isFalse();
+        }
+        assertThat(((FlowNode) review.getFlowElement("publishRemediation")).getOutgoingFlows())
+                .extracting(SequenceFlow::getTargetRef).containsExactly("runQA");
+        var learning = model.getProcessById("skillImprovementReference");
+        assertThat(reaches(learning, "feedbackBatchReady", "publishSkillVersion", "")).isTrue();
+        for (String gate : Set.of("evaluateSkillChange", "awaitSkillApproval")) {
+            assertThat(reaches(learning, "feedbackBatchReady", "publishSkillVersion", gate)).as("Skill publication cannot bypass %s", gate).isFalse();
+        }
         var hotfix = model.getProcessById("hotfixDeliveryReference");
         assertThat(((CallActivity) hotfix.getFlowElement("reviewHotfix")).getCalledElement()).isEqualTo("reviewMergeReference");
         assertThat(reaches(hotfix, "hotfixRequested", "tagHotfix", "")).isTrue();
@@ -71,7 +104,7 @@ class WorkflowReferenceTest {
         }
         String guide = Files.readString(architecture.resolve("workflow-reference.md"));
         var nodePattern = Pattern.compile("^    (\\w+)(?:\\[|\\{|\\().*?\"([^\"]+)\"", Pattern.MULTILINE);
-        var edgePattern = Pattern.compile("^    (\\w+) -->(?:\\|\"([^\"]+)\"\\|)? (\\w+)$", Pattern.MULTILINE);
+        var edgePattern = Pattern.compile("^    (\\w+) (?:-->|-\\.->)(?:\\|\"([^\"]+)\"\\|)? (\\w+)$", Pattern.MULTILINE);
         Map<String, String> mermaidNodes = new HashMap<>();
         Set<String> mermaidEdges = new HashSet<>();
         nodePattern.matcher(guide).results().forEach(match -> mermaidNodes.put(match.group(1), match.group(2)));

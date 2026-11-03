@@ -39,6 +39,12 @@ propagation into affected active epics/releases. The
 [workflow reference](workflow-reference.md) models both paths; runtime release and
 hotfix handling remain proposed.
 
+Review/QA findings, human decisions and verified remediation outcomes are retained
+in a [separate feedback datastore](../requirements/review-and-feedback.md), using a
+durable handoff from operational state. A separate workflow proposes and evaluates
+skill changes, obtains human approval and publishes versioned skills for future
+jobs; feedback never directly rewrites skills or grants execution authority.
+
 ## Reliability and safeguards
 Use idempotency keys for webhook deliveries and job dispatch, leases and heartbeats, reconciliations before retry, concurrency budgets, stop/pause, timeouts and human escalation. Treat model output as untrusted. Limit repository credentials and permissions; use short-lived tokens, redact logs, and never commit secrets.
 
