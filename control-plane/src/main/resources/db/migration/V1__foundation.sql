@@ -108,6 +108,17 @@ create table webhook_event (
     published_at timestamptz not null default now()
 );
 
+-- Support ordered claims and selective metadata containment for the execution consumer.
+create index inbox_processed_issues_order on webhook_inbox(received_at, delivery_id)
+    where state = 'PROCESSED' and event_type = 'issues';
+create index inbox_processed_issues_metadata on webhook_inbox using gin(metadata jsonb_path_ops)
+    where state = 'PROCESSED' and event_type = 'issues';
+
+create table workflow_source_delivery (
+    delivery_id uuid primary key references webhook_event(delivery_id),
+    run_id uuid not null references workflow_run(id)
+);
+
 create table lifecycle_transition (
     command_id uuid primary key,
     request_sha256 text not null check (request_sha256 ~ '^[0-9a-f]{64}$'),

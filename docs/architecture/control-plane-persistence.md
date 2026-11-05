@@ -97,6 +97,37 @@ the caller's transaction. The approved starter below supplies that boundary;
 repository-specific workflow selection remains #93. PostgreSQL tests verify exact
 stored pins, reload, mismatch rejection, uniqueness and rollback of run/job together, without claiming engine dispatch.
 
+## Classified source delivery persistence
+
+The execution feature's `ApprovedEventTarget` and `ApprovedEventInbox` port (#103)
+provide a storage boundary for the future #84 dispatcher. `JdbcApprovedEventInbox`
+claims only processed, classified `issues/opened` deliveries matching the
+server-selected local repository/story, repository external ID, installation ID,
+issue ID and local story issue number. Other actions, mismatches and unclassified
+or unprocessed deliveries are left untouched. Routing identity grants no approval.
+
+Claims lock inbox rows in deterministic received-time/delivery-ID order with
+`FOR UPDATE SKIP LOCKED`; competing consumers can claim different deliveries.
+Partial indexes on the processed `issues` subset support both ordered selection
+(`received_at, delivery_id` btree) and metadata containment (`jsonb_path_ops` GIN).
+The planner chooses between ordering and selectivity according to data statistics;
+these indexes do not guarantee constant-time claims over a large checkpointed
+backlog. They add write/storage cost when deliveries become processed.
+Both operations require an active caller transaction. The caller must keep claim,
+approved startup and checkpoint in that same transaction; committing a claim alone
+does not reserve a delivery. `workflow_source_delivery` binds a classified delivery
+to a domain run, allowing multiple source deliveries for one run. Recording the
+same binding is idempotent; a different run for that delivery fails closed. A
+checkpoint excludes that delivery from subsequent claims, and rollback restores
+pending work and removes uncommitted checkpoints. The caller remains responsible
+for matching the selected run to the approved story; storage is not authorization.
+
+PostgreSQL tests cover routing exclusions, processing/classification prerequisites,
+checkpoint replay/conflict, caller rollback and competing claims. These sanitized
+storage fixtures establish neither webhook authentication nor engine startup.
+There is no runtime bean, poller or automatic workflow start for this port yet;
+#84 must compose it with the approved starter and verify the complete ingress path.
+
 ## Approved execution startup
 
 `forgeflow.execution.enabled` defaults to false. When enabled, startup registers
