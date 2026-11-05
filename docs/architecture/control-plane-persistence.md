@@ -108,6 +108,11 @@ or unprocessed deliveries are left untouched. Routing identity grants no approva
 
 Claims lock inbox rows in deterministic received-time/delivery-ID order with
 `FOR UPDATE SKIP LOCKED`; competing consumers can claim different deliveries.
+Partial indexes on the processed `issues` subset support both ordered selection
+(`received_at, delivery_id` btree) and metadata containment (`jsonb_path_ops` GIN).
+The planner chooses between ordering and selectivity according to data statistics;
+these indexes do not guarantee constant-time claims over a large checkpointed
+backlog. They add write/storage cost when deliveries become processed.
 Both operations require an active caller transaction. The caller must keep claim,
 approved startup and checkpoint in that same transaction; committing a claim alone
 does not reserve a delivery. `workflow_source_delivery` binds a classified delivery

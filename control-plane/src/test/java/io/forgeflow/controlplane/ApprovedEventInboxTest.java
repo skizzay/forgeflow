@@ -66,6 +66,12 @@ class ApprovedEventInboxTest {
                 id, target.storyId(), id.toString(), "c".repeat(64), UUID.randomUUID());
         return id;
     }
+    @Test void migrationProvidesPartialOrderingAndContainmentIndexes() {
+        var indexes = jdbc.queryForMap("select indexdef from pg_indexes where schemaname=current_schema() and indexname='inbox_processed_issues_order'");
+        assertThat(indexes.get("indexdef").toString()).contains("USING btree (received_at, delivery_id)", "state = 'PROCESSED'", "event_type = 'issues'");
+        var containment = jdbc.queryForObject("select indexdef from pg_indexes where schemaname=current_schema() and indexname='inbox_processed_issues_metadata'", String.class);
+        assertThat(containment).contains("USING gin (metadata jsonb_path_ops)", "state = 'PROCESSED'", "event_type = 'issues'");
+    }
     @Test void matchesOnlyClassifiedProcessedOpenedDeliveryForExactTarget() {
         delivery(43,7,99,2,"opened","issues","PROCESSED","ISSUE");
         delivery(42,8,99,2,"opened","issues","PROCESSED","ISSUE");
