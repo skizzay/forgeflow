@@ -84,9 +84,10 @@ proof of authentication.
 The execution feature now has [classified source-delivery persistence](control-plane-persistence.md#classified-source-delivery-persistence)
 (#103): exact server-selected story routing, transactional claims and durable
 source-to-run checkpoints. It consumes existing classification without changing
-inbox state. No runtime dispatcher invokes it yet; #84 owns approved startup and
-signed-ingress-to-engine verification. Classification is still not dispatch or
-approval authority.
+inbox state. The separate opt-in #84 dispatcher now invokes the approved starter and checkpoints
+its run in one transaction. Classification itself remains separate from dispatch
+and grants no approval authority. Only the configured issue's `opened` deliveries
+can trigger this initial run path; review/update continuation remains proposed.
 
 ## Verification
 

@@ -12,6 +12,9 @@ spring:
 forgeflow:
   execution:
     enabled: false
+    inbox:
+      enabled: false
+      poll-interval: PT1S
   manual-approval:
     enabled: false
   worker:

@@ -100,7 +100,7 @@ stored pins, reload, mismatch rejection, uniqueness and rollback of run/job toge
 ## Classified source delivery persistence
 
 The execution feature's `ApprovedEventTarget` and `ApprovedEventInbox` port (#103)
-provide a storage boundary for the future #84 dispatcher. `JdbcApprovedEventInbox`
+provide the storage boundary for the #84 dispatcher. `JdbcApprovedEventInbox`
 claims only processed, classified `issues/opened` deliveries matching the
 server-selected local repository/story, repository external ID, installation ID,
 issue ID and local story issue number. Other actions, mismatches and unclassified
@@ -125,8 +125,31 @@ for matching the selected run to the approved story; storage is not authorizatio
 PostgreSQL tests cover routing exclusions, processing/classification prerequisites,
 checkpoint replay/conflict, caller rollback and competing claims. These sanitized
 storage fixtures establish neither webhook authentication nor engine startup.
-There is no runtime bean, poller or automatic workflow start for this port yet;
-#84 must compose it with the approved starter and verify the complete ingress path.
+`ApprovedEventService` implements the framework-free `DispatchApprovedEvent` port.
+It claims one delivery, calls `StartApprovedExecution` with the server-selected
+`ManualPlan`, then checkpoints the returned run in one outer transaction. Nested
+starter/preparation transactions join it; a checkpoint failure rolls back engine,
+run, job and parent transitions as well. A second delivery for the same approved
+story checkpoints the existing run; replay after restart creates no extra job.
+
+Opt-in Spring composition shares the same configured `ManualPlan` bean with the
+manual approval use case. The webhook supplies neither pins nor approver identity.
+`ApprovedEventPoller` runs blocking work on Spring's scheduler, never a WebFlux
+event loop, starting after one configured interval and processing at most 100
+successful items per tick. The first failure stops the batch, logs only fixed text
+and leaves the delivery pending. Missing/revoked approval is rechecked on each
+attempt; no failure is caught inside the transaction. This intentionally supports
+one configured story only: no cross-story fairness, retry budget, dead-lettering,
+provider API calls, worker execution or later BPMN progression is added.
+
+Signed-ingress use-case tests exercise real HMAC verification, JSON decoding,
+classification, dispatch and Flowable/PostgreSQL persistence, including invalid
+signatures, routing mismatches, approval deferral/revocation, duplicate delivery
+IDs, new IDs for the same issue, restart and checkpoint-failure rollback. Operator
+approval uses the existing explicit fixture actor; HTTP/JWT validation is covered
+separately, not a live GitHub/IdP experiment. See the
+[local setup](../user-guide/local-control-plane.md#optional-approved-event-dispatch)
+for required switches and routing settings.
 
 ## Approved execution startup
 
@@ -152,14 +175,19 @@ JDBC, transaction and Flowable implementations. Engine types stay in adapters.
 
 ```mermaid
 flowchart LR
-    Caller[Trusted Java caller] --> TX
+    Inbox[Classified issue opened] --> Poller[Opt-in scheduled dispatcher]
+    Poller --> Caller[DispatchApprovedEvent]
+    Caller --> Claim
     subgraph TX[One Spring transaction]
+        Claim[Lock matching classified delivery] --> Prepare
         Prepare[Verify approval and prepare parents] --> Existing{Run exists?}
         Existing -->|Yes| Replay[Return stored correlation]
         Existing -->|No| Run[Persist pinned run]
         Run --> Engine[Start exact Flowable definition]
         Engine --> Queue[BPMN queues initial job]
         Queue --> Wait[Durable awaitOutcome]
+        Wait --> Checkpoint[Checkpoint source delivery and run]
+        Replay --> Checkpoint
     end
     TX --> Commit[Commit together or roll back together]
 ```
@@ -167,7 +195,8 @@ flowchart LR
 PostgreSQL tests verify concurrent starts yield one run/job/process, restart replay,
 revoked/mismatched approval denial, and rollback of parent states, audit, run, job
 and engine records during dispatch and after engine startup. Runtime remains opt-in
-and has no start HTTP endpoint, inbox trigger (#84), worker execution or publication.
+and has no start HTTP endpoint, worker execution or publication. The diagram shows
+the inbox path; trusted direct Java startup does not claim/checkpoint a delivery.
 Future WebFlux callers must execute the entire imperative operation off event-loop
 threads. A returned correlation inside a larger transaction is acknowledged only
 after its caller commits. Worker completion/progression remains separate work.
