@@ -1,6 +1,16 @@
 package io.forgeflow.controlplane;
 
 import io.forgeflow.controlplane.execution.application.port.in.StartApprovedExecution;
+import io.forgeflow.controlplane.execution.application.port.in.DispatchApprovedEvent;
+import io.forgeflow.controlplane.execution.adapter.in.scheduling.ApprovedEventPoller;
+import io.forgeflow.controlplane.webhook.application.port.in.ReceiveWebhook;
+import io.forgeflow.controlplane.webhook.application.port.in.ProcessWebhook;
+import io.forgeflow.controlplane.webhook.application.port.in.SignedWebhook;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.HexFormat;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import io.forgeflow.controlplane.execution.domain.ExecutionRun;
 import io.forgeflow.controlplane.lifecycle.adapter.out.persistence.JdbcLifecycleRepository;
 import io.forgeflow.controlplane.lifecycle.adapter.out.persistence.JdbcManualApprovalStore;
@@ -45,19 +55,26 @@ class ApprovedExecutionIntegrationTest {
         url = admin.substring(0, admin.lastIndexOf('/') + 1) + database + "?currentSchema=execution_domain";
         try (var c = DriverManager.getConnection(admin, user, password); var sql = c.createStatement()) { sql.execute("create database " + database); }
         DatabaseMigrator.migrate(new DriverManagerDataSource(url, user, password), DatabaseSchemas.fromJdbcUrl(url, "execution_engine"));
+        try (var resource = getClass().getResourceAsStream("/workflows/approved-story-v1.bpmn20.xml")) {
+            digest = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(resource.readAllBytes()));
+        }
+        plan = new ManualPlan(epic, story, "https://identity.example human", approval, "approved-story", 1, digest);
         restart();
-        digest = jdbc.queryForObject("select content_sha256 from workflow_definition where workflow_key='approved-story'", String.class);
         jdbc.update("insert into repository(id,github_id,full_name) values (?,42,'public/execution-fixture')", repo);
         jdbc.update("insert into epic(id,repository_id,issue_number) values (?,?,1)", epic, repo);
         jdbc.update("insert into story(id,epic_id,repository_id,issue_number) values (?,?,?,2)", story, epic, repo);
-        plan = new ManualPlan(epic, story, "https://identity.example human", approval, "approved-story", 1, digest);
     }
     private void restart() {
         if (context != null) context.close();
         // No live IdP or HTTP endpoint. The explicit fixture actor enters the same approval use case tested over OAuth2 separately.
-        context = new SpringApplicationBuilder(ControlPlaneApplication.class).web(WebApplicationType.NONE).run(
+        context = new SpringApplicationBuilder(ControlPlaneApplication.class).web(WebApplicationType.NONE)
+                .initializers(application -> application.getBeanFactory().registerSingleton("fixtureManualPlan", plan)).run(
                 "--spring.datasource.url=" + url, "--spring.datasource.username=" + user, "--spring.datasource.password=" + password,
-                "--forgeflow.database.engine-schema=execution_engine", "--forgeflow.execution.enabled=true", "--logging.level.root=ERROR");
+                "--forgeflow.database.engine-schema=execution_engine", "--forgeflow.execution.enabled=true", "--logging.level.root=ERROR",
+                "--forgeflow.execution.inbox.enabled=true", "--forgeflow.execution.inbox.repository-id=" + repo,
+                "--forgeflow.execution.inbox.installation-id=7", "--forgeflow.execution.inbox.issue-id=99",
+                "--forgeflow.execution.inbox.poll-interval=PT24H", "--forgeflow.github.webhook.enabled=true",
+                "--forgeflow.github.webhook.processing-enabled=false", "--forgeflow.github.webhook.secret=public-test-fixture-secret");
         jdbc = context.getBean(JdbcTemplate.class);
     }
     private void approve() {
@@ -77,6 +94,65 @@ class ApprovedExecutionIntegrationTest {
         if (database != null) try (var c = DriverManager.getConnection(admin, user, password); var sql = c.createStatement()) {
             sql.execute("drop database if exists " + database + " with (force)");
         }
+    }
+    private SignedWebhook signedDelivery(long installation) throws Exception {
+        byte[] body = ("{\"repository\":{\"id\":42},\"installation\":{\"id\":" + installation
+                + "},\"issue\":{\"id\":99,\"number\":2},\"action\":\"opened\"}").getBytes(StandardCharsets.UTF_8);
+        var mac = Mac.getInstance("HmacSHA256");
+        mac.init(new SecretKeySpec("public-test-fixture-secret".getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+        return new SignedWebhook(UUID.randomUUID().toString(), "issues", "sha256=" + HexFormat.of().formatHex(mac.doFinal(body)), body);
+    }
+    private boolean dispatch() { return context.getBean(DispatchApprovedEvent.class).dispatchOne(); }
+    private void receive(SignedWebhook delivery) {
+        context.getBean(ReceiveWebhook.class).receive(delivery);
+        context.getBean(ProcessWebhook.class).processOne();
+    }
+    @Test void signedIngressWaitsForApprovalAndReplaysOneRunAcrossRestart() throws Exception {
+        var signed = signedDelivery(7);
+        assertThatThrownBy(() -> receive(new SignedWebhook(signed.deliveryId(), "issues", "sha256=" + "0".repeat(64), signed.payload())))
+                .hasMessageContaining("INVALID_SIGNATURE");
+        assertThat(count("webhook_inbox")).isZero();
+        receive(signedDelivery(8)); // A signed routing mismatch must not block the configured target.
+        receive(signed);
+        assertThatThrownBy(this::dispatch).hasMessageContaining("IDENTITY_MISMATCH");
+        assertThat(count("workflow_source_delivery")).isZero();
+        approve();
+        context.getBean(ApprovedEventPoller.class).poll();
+        assertThat(count("workflow_source_delivery")).isEqualTo(1);
+        receive(signed); // Same delivery ID replay.
+        receive(signedDelivery(7)); // Different delivery ID for the same issue.
+        restart();
+        assertThat(dispatch()).isTrue();
+        assertThat(dispatch()).isFalse();
+        assertThat(count("workflow_source_delivery")).isEqualTo(2);
+        assertThat(count("workflow_run")).isEqualTo(1);
+        assertThat(count("job")).isEqualTo(1);
+        var engine = context.getBean(ProcessEngine.class);
+        var process = engine.getRuntimeService().createProcessInstanceQuery().singleResult();
+        assertThat(engine.getRuntimeService().getActiveActivityIds(process.getId())).containsExactly("awaitOutcome");
+    }
+    @Test void checkpointFailureRollsBackEngineRunJobAndParentTransitions() throws Exception {
+        approve();
+        receive(signedDelivery(7));
+        jdbc.execute("create function reject_checkpoint() returns trigger language plpgsql as $$ begin raise exception 'fixture checkpoint rollback'; end $$");
+        jdbc.execute("create trigger reject_checkpoint after insert on workflow_source_delivery for each row execute function reject_checkpoint()");
+        assertThatThrownBy(this::dispatch).isInstanceOf(RuntimeException.class);
+        for (String table : new String[]{"workflow_source_delivery", "workflow_run", "job"}) assertThat(count(table)).isZero();
+        assertThat(jdbc.queryForObject("select state from epic", String.class)).isEqualTo("APPROVED");
+        assertThat(jdbc.queryForObject("select state from story", String.class)).isEqualTo("DRAFT");
+        assertThat(context.getBean(ProcessEngine.class).getRuntimeService().createProcessInstanceQuery().count()).isZero();
+        jdbc.execute("drop trigger reject_checkpoint on workflow_source_delivery");
+        assertThat(dispatch()).isTrue();
+        assertThat(count("workflow_source_delivery")).isEqualTo(1);
+    }
+    @Test void revokedApprovalLeavesSignedDeliveryPending() throws Exception {
+        approve();
+        manual.record(new RecordManualApproval.Command(UUID.randomUUID(), plan.approver(), RecordManualApproval.Action.INVALIDATE,
+                1, epic, story, null, null, null, null));
+        receive(signedDelivery(7));
+        assertThatThrownBy(this::dispatch).hasMessageContaining("IDENTITY_MISMATCH");
+        assertThat(count("workflow_source_delivery")).isZero();
+        assertThat(count("workflow_run")).isZero();
     }
     @Test void approvalIsRequiredAndRevocationCannotBeReplacedByOldEvidence() {
         assertThatThrownBy(this::start).hasMessageContaining("IDENTITY_MISMATCH");

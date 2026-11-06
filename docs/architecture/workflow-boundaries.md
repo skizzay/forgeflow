@@ -15,10 +15,10 @@ plus a separate durable feedback store and governed skill-improvement workflow.
 
 | Responsibility | Owner | Current status |
 |---|---|---|
-| Activity order, gateways, durable waits and business retry paths | Flowable BPMN | Bootstrap waits at `awaitImplementation`. Opt-in approved-story v1 queues its initial job and waits at awaitOutcome through the trusted Java starter (#89). Inbox dispatch, worker execution and later progression remain pending. |
-| Approval authority, attempt ownership, leases, fencing and verified evidence | Focused Java domain policies and activity handlers | Lifecycle guards, OAuth2 worker authentication and single-pair manual human approval exist; the opt-in atomic Java starter exists; worker operations and inbox-triggered dispatch remain unimplemented. |
+| Activity order, gateways, durable waits and business retry paths | Flowable BPMN | Bootstrap waits at `awaitImplementation`. Opt-in approved-story v1 queues its initial job and waits at awaitOutcome through the trusted Java starter (#89). Opt-in configured issue-opened dispatch (#84) invokes that starter; worker execution and later progression remain pending. |
+| Approval authority, attempt ownership, leases, fencing and verified evidence | Focused Java domain policies and activity handlers | Lifecycle guards, OAuth2 worker authentication and single-pair manual human approval exist; the opt-in atomic Java starter exists; configured inbox startup exists; worker operations remain unimplemented. |
 | Job/story/epic transition model | Java lifecycle domain | Implemented today; must not grow into a parallel workflow sequencer. Independent business invariants remain, while BPMN owns process routing. |
-| Event ingestion and process correlation | Inbound adapters plus durable inbox and Flowable entry handlers | GitHub inbox verification/classification exists; normalized process-start/resume integration is proposed. |
+| Event ingestion and process correlation | Inbound adapters plus durable inbox and Flowable entry handlers | GitHub inbox verification/classification exists; one configured issue-opened event can start/checkpoint an approved run (#84); general normalization and process resume remain proposed. |
 | Review feedback and skill improvement | Separate feedback datastore and evaluated, human-approved skill workflow | Proposed; no feedback-store adapter, review aggregation or skill-promotion runtime is implemented. |
 | Ticket operations | Ticket ports and provider adapters | Proposed; no provider-neutral ticket port is implemented. |
 | Repository/change-request operations | Repository ports and provider adapters | Proposed; current GitHub-specific schema and webhook code are not a pluggable repository implementation. |

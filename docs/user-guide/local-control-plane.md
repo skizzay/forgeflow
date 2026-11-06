@@ -74,8 +74,49 @@ Set `forgeflow.execution.enabled: true` in external Spring YAML to register the
 packaged `approved-story` v1 workflow and `develop-story` v1 activity and enable
 the internal approved-start backend. It defaults to false. Registration and
 [manual approval](manual-plan-approval.md) alone start no process or job. There is
-no start HTTP endpoint or inbox trigger yet (#84); trusted Java callers can start
+no start HTTP endpoint; trusted Java callers and the optional inbox dispatcher can start
 one approved run atomically with its initial job and durable Flowable wait (#89).
 Repository-specific workflow selection is not implemented (#93). PostgreSQL tests
 verify guarded startup, replay/restart, competing starts and engine/domain rollback;
 see [persistence](../architecture/control-plane-persistence.md#approved-execution-startup).
+
+
+## Optional approved event dispatch
+
+For one configured test story, set the following in an external Spring YAML file
+alongside your existing [manual approval](manual-plan-approval.md) settings and
+[webhook ingress](github-webhooks.md) secret. Replace the illustrative identifiers
+with the already provisioned local repository and exact GitHub installation/issue
+IDs. `issue-id` is GitHub's issue object ID, not the issue number.
+
+```yaml
+forgeflow:
+  execution:
+    enabled: true
+    inbox:
+      enabled: true
+      repository-id: 00000000-0000-0000-0000-000000000001
+      installation-id: 7
+      issue-id: 99
+      poll-interval: PT1S
+```
+
+Inbox dispatch defaults to disabled. Enabling it requires the approved-execution
+backend and configured manual approval (including OAuth2 issuer/subject and all
+reviewed pins); missing dependencies or invalid positive IDs/interval fail startup.
+Webhook ingress and classification must also be enabled to supply new events.
+The story comes from the manual approval configuration, and its local issue number
+and repository external ID must match the delivery. This is not repository discovery
+or provisioning. Do not place real secrets or operator tokens in tracked files.
+
+A verified, classified `issues/opened` delivery waits durably for current human
+approval, then starts one `approved-story` process and PENDING job. The poller first
+runs after one interval and handles at most 100 successful deliveries per tick;
+any failure stops the batch and retries on the next tick with fixed, redacted log
+text. Check `workflow_source_delivery` for the delivery/run binding, `workflow_run`
+and `job` for intent, and inbox classification for ingress progress. A processed
+inbox row without a checkpoint may still be awaiting approval or a storage retry.
+Restart or duplicate deliveries reuse the pinned run. Unsupported events and
+mismatched targets stay outside this single-story dispatch slice. Disable
+`forgeflow.execution.inbox.enabled` to stop automatic startup; it does not cancel
+existing work. Worker execution, repository writes and PR publication remain absent.

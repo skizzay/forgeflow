@@ -5,6 +5,7 @@ import io.forgeflow.controlplane.lifecycle.adapter.out.persistence.JdbcManualApp
 import io.forgeflow.controlplane.lifecycle.adapter.out.persistence.SpringLifecycleTransactions;
 import io.forgeflow.controlplane.lifecycle.application.ManualApprovalService;
 import io.forgeflow.controlplane.lifecycle.application.port.in.RecordManualApproval;
+import io.forgeflow.controlplane.lifecycle.domain.approval.ManualPlan;
 import java.time.Clock;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
@@ -30,9 +31,12 @@ import org.springframework.transaction.PlatformTransactionManager;
 @EnableConfigurationProperties(ManualApprovalSettings.class)
 public class ManualApprovalConfiguration {
     @Bean
-    RecordManualApproval recordManualApproval(ManualApprovalSettings settings, JdbcTemplate jdbc, PlatformTransactionManager manager,
-                                              OAuth2ResourceServerProperties properties) {
-        return new ManualApprovalService(settings.plan(properties.getJwt().getIssuerUri()), new JdbcLifecycleRepository(jdbc),
+    ManualPlan configuredManualPlan(ManualApprovalSettings settings, OAuth2ResourceServerProperties properties) {
+        return settings.plan(properties.getJwt().getIssuerUri());
+    }
+    @Bean
+    RecordManualApproval recordManualApproval(ManualPlan plan, JdbcTemplate jdbc, PlatformTransactionManager manager) {
+        return new ManualApprovalService(plan, new JdbcLifecycleRepository(jdbc),
                 new SpringLifecycleTransactions(manager), new JdbcManualApprovalStore(jdbc), Clock.systemUTC());
     }
     @Bean @Order(-2)

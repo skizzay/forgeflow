@@ -4,8 +4,9 @@ Implements [#46](https://github.com/skizzay/forgeflow/issues/46), under #11/#3.
 The opt-in command records human approval for one configured epic/story pair. It
 transitions only the epic DRAFT → APPROVED, or APPROVED → DRAFT on invalidation.
 The story stays DRAFT. No workflow instance, job, dispatch or merge is created.
-Future event-to-job handling (#47) must consume current approval evidence and use
-the existing guards for parent activation and story readiness; it is not implemented here.
+The separate opt-in [event dispatcher](control-plane-persistence.md#classified-source-delivery-persistence)
+(#84) consumes current approval evidence through the existing starter guards;
+recording approval alone never dispatches work.
 
 ## Authentication and authority
 
@@ -72,8 +73,8 @@ this command. Changed configured inputs cannot silently replace a pin: explicitl
 invalidate while APPROVED, then approve the newly reviewed identity with a new
 command ID and current expected version. Use a new approval ID for changed pins.
 Identical actor-bound command replay returns its historical receipt, not current
-state, and cannot reactivate an invalidated approval. Future dispatch must re-read
-current pins rather than trust an old receipt.
+state, and cannot reactivate an invalidated approval. The dispatcher re-reads
+current pins rather than trusting an old receipt.
 
 ## Limits and verification
 
