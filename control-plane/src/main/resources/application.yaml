@@ -1,15 +1,15 @@
 spring:
   application:
-    name: forgeflow-control-plane
+    name: slickflow-control-plane
   datasource:
-    url: ${FORGEFLOW_DB_URL}
-    username: ${FORGEFLOW_DB_USER}
-    password: ${FORGEFLOW_DB_PASSWORD}
+    url: ${SLICKFLOW_DB_URL}
+    username: ${SLICKFLOW_DB_USER}
+    password: ${SLICKFLOW_DB_PASSWORD}
   flyway:
     enabled: false
   main:
     banner-mode: "off"
-forgeflow:
+slickflow:
   execution:
     enabled: false
     inbox:
@@ -18,18 +18,18 @@ forgeflow:
   manual-approval:
     enabled: false
   worker:
-    enabled: ${FORGEFLOW_WORKER_ENABLED:false}
-    id: ${FORGEFLOW_WORKER_ID:}
-    subject: ${FORGEFLOW_WORKER_SUBJECT:}
+    enabled: ${SLICKFLOW_WORKER_ENABLED:false}
+    id: ${SLICKFLOW_WORKER_ID:}
+    subject: ${SLICKFLOW_WORKER_SUBJECT:}
   github:
     webhook:
-      enabled: ${FORGEFLOW_GITHUB_WEBHOOK_ENABLED:false}
-      secret: ${FORGEFLOW_GITHUB_WEBHOOK_SECRET:}
+      enabled: ${SLICKFLOW_GITHUB_WEBHOOK_ENABLED:false}
+      secret: ${SLICKFLOW_GITHUB_WEBHOOK_SECRET:}
       max-bytes: 1048576
       processing-enabled: true
       poll-interval: PT1S
   database:
-    engine-schema: ${FORGEFLOW_ENGINE_SCHEMA:flowable}
+    engine-schema: ${SLICKFLOW_ENGINE_SCHEMA:flowable}
 server:
   address: 127.0.0.1
 management:

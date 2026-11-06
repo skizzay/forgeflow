@@ -1,8 +1,8 @@
 # #14: Separate job, story and epic lifecycle
 
-Issue: [#14](https://github.com/skizzay/forgeflow/issues/14), parent
-[Foundation #1](https://github.com/skizzay/forgeflow/issues/1).
-Status: implementation under review in [PR #24](https://github.com/skizzay/forgeflow/pull/24).
+Issue: [#14](https://github.com/skizzay/slickflow/issues/14), parent
+[Foundation #1](https://github.com/skizzay/slickflow/issues/1).
+Status: implementation under review in [PR #24](https://github.com/skizzay/slickflow/pull/24).
 Dependencies: #7/#32 integrated into `epic/1-foundation`; #18 research accepted.
 
 ## Delivered scope

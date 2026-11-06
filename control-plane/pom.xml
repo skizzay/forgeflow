@@ -1,6 +1,6 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
-  <parent><groupId>io.forgeflow</groupId><artifactId>forgeflow</artifactId><version>0.1.0-SNAPSHOT</version></parent>
+  <parent><groupId>ai.slickflow</groupId><artifactId>slickflow</artifactId><version>0.1.0-SNAPSHOT</version></parent>
   <artifactId>control-plane</artifactId>
   <dependencies>
     <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-webflux</artifactId></dependency>
@@ -17,10 +17,10 @@
   </dependencies>
   <build><plugins><plugin>
     <groupId>org.springframework.boot</groupId><artifactId>spring-boot-maven-plugin</artifactId>
-    <configuration><mainClass>io.forgeflow.controlplane.ControlPlaneApplication</mainClass></configuration>
+    <configuration><mainClass>ai.slickflow.controlplane.ControlPlaneApplication</mainClass></configuration>
     <executions>
       <execution><id>migration-artifact</id><goals><goal>repackage</goal></goals>
-        <configuration><classifier>migrate</classifier><mainClass>io.forgeflow.controlplane.DatabaseMigrator</mainClass></configuration>
+        <configuration><classifier>migrate</classifier><mainClass>ai.slickflow.controlplane.DatabaseMigrator</mainClass></configuration>
       </execution>
     </executions>
   </plugin></plugins></build>

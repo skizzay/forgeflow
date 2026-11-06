@@ -1,9 +1,9 @@
 # Control-plane persistence bootstrap
 
-Tracks [#7](https://github.com/skizzay/forgeflow/issues/7), parent
-[Foundation #1](https://github.com/skizzay/forgeflow/issues/1). Consumes the accepted
-[#18 research decision](https://github.com/skizzay/forgeflow/issues/18); no POC code
-is adopted. [Documentation PR #26](https://github.com/skizzay/forgeflow/pull/26)
+Tracks [#7](https://github.com/skizzay/slickflow/issues/7), parent
+[Foundation #1](https://github.com/skizzay/slickflow/issues/1). Consumes the accepted
+[#18 research decision](https://github.com/skizzay/slickflow/issues/18); no POC code
+is adopted. [Documentation PR #26](https://github.com/skizzay/slickflow/pull/26)
 publishes the separate research record and category layout.
 
 ## Selected stack
@@ -25,13 +25,13 @@ Sources checked for this implementation:
 ## Ownership and transactions
 
 One modular Spring Boot control plane uses one datasource and one Spring Boot auto-configured JDBC
-transaction manager. `forgeflow` contains Flyway-managed domain tables, registry
+transaction manager. `slickflow` contains Flyway-managed domain tables, registry
 metadata, pinned run identity, dispatch skeleton and webhook delivery metadata.
 `flowable` contains engine-managed tables. The domain schema comes solely from
-pgJDBC `currentSchema` in `FORGEFLOW_DB_URL`, for example
-`jdbc:postgresql://db:5432/forgeflow?currentSchema=forgeflow`. The separate engine
-schema remains configurable with `FORGEFLOW_ENGINE_SCHEMA` / runtime YAML
-`forgeflow.database.engine-schema` (default `flowable`). Both are validated,
+pgJDBC `currentSchema` in `SLICKFLOW_DB_URL`, for example
+`jdbc:postgresql://db:5432/slickflow?currentSchema=slickflow`. The separate engine
+schema remains configurable with `SLICKFLOW_ENGINE_SCHEMA` / runtime YAML
+`slickflow.database.engine-schema` (default `flowable`). Both are validated,
 distinct dedicated lowercase identifiers; missing/multiple/current-public/system
 schemas are rejected. The driver initializes every physical connection's search
 path, equally for Hikari runtime connections and the standalone migrator.
@@ -153,7 +153,7 @@ for required switches and routing settings.
 
 ## Approved execution startup
 
-`forgeflow.execution.enabled` defaults to false. When enabled, startup registers
+`slickflow.execution.enabled` defaults to false. When enabled, startup registers
 packaged `approved-story` v1 / `develop-story` v1 and exposes the trusted Java
 `StartApprovedExecution` port (#89). Registration alone starts no process or job.
 Content/contract mismatches still fail startup; restart never overwrites a definition.
@@ -203,7 +203,7 @@ after its caller commits. Worker completion/progression remains separate work.
 
 ## Schema initialization
 
-ForgeFlow is developing its initial release. One V1 migration defines the current
+SlickFlow is developing its initial release. One V1 migration defines the current
 domain schema, including verified webhook identity and guarded lifecycle state.
 There is no supported upgrade path between development revisions. Initialize a
 fresh disposable development database after changing V1; preserve any needed data

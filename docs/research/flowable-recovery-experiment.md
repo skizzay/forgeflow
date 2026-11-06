@@ -1,8 +1,8 @@
 # Flowable external-worker recovery experiment
 
-Issue: [#18](https://github.com/skizzay/forgeflow/issues/18), parent
-[Foundation #1](https://github.com/skizzay/forgeflow/issues/1).
-Related PR: [#21](https://github.com/skizzay/forgeflow/pull/21), kept open.
+Issue: [#18](https://github.com/skizzay/slickflow/issues/18), parent
+[Foundation #1](https://github.com/skizzay/slickflow/issues/1).
+Related PR: [#21](https://github.com/skizzay/slickflow/pull/21), kept open.
 Dependencies: none for simulated effects; real Codex/GitHub evidence requires #13.
 
 ## Question and scope
@@ -60,7 +60,7 @@ investigated before further integration.
 
 ## Reproduce and evidence
 
-Run the Compose commands in the [spike README](https://github.com/skizzay/forgeflow/blob/c5d8fcab11253eb5529caad8c066ebd13a033d1b/spikes/flowable/README.md).
+Run the Compose commands in the [spike README](https://github.com/skizzay/slickflow/blob/c5d8fcab11253eb5529caad8c066ebd13a033d1b/spikes/flowable/README.md).
 The six cases are executable in `RecoveryExperimentTest`, alongside the three
 original `WorkflowPersistenceTest` cases. Leases are expired by setting stored
 deadlines in test code; no sleep-based expiry assumptions are used. Child processes

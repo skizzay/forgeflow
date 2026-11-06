@@ -1,8 +1,8 @@
 # #8: Implement verified, idempotent GitHub webhook inbox
 
-Issue: [#8](https://github.com/skizzay/forgeflow/issues/8).
-Parent: [Foundation #1](https://github.com/skizzay/forgeflow/issues/1).
-Status: implementation merged into main via [PR #23](https://github.com/skizzay/forgeflow/pull/23).
+Issue: [#8](https://github.com/skizzay/slickflow/issues/8).
+Parent: [Foundation #1](https://github.com/skizzay/slickflow/issues/1).
+Status: implementation merged into main via [PR #23](https://github.com/skizzay/slickflow/pull/23).
 Dependencies: #7 and #32 integrated into `epic/1-foundation` via #31/#34.
 
 ## Delivered implementation

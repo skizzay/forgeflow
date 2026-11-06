@@ -1,11 +1,11 @@
 # Development workflow reference
 
-Tracks [#100](https://github.com/skizzay/forgeflow/issues/100).
+Tracks [#100](https://github.com/skizzay/slickflow/issues/100).
 [Download/open the BPMN model](workflows/development-lifecycle.bpmn20.xml).
 
 **Proposed architecture reference, not an executable workflow.** All five BPMN
 processes have `isExecutable="false"`; the file lives outside runtime resources
-and is never registered by ForgeFlow. Tasks, decisions and call outcomes describe
+and is never registered by SlickFlow. Tasks, decisions and call outcomes describe
 required responsibilities, not implemented delegates, expressions or IO mappings.
 The BPMN includes a routed layout with orthogonal connectors and explicit labels.
 It contains five diagrams; viewers that open only the first show epic coordination.
@@ -393,13 +393,13 @@ integration span later roadmap work and are not delivered by this reference. #84
 Run the structural/schema checks with the project's Java build container:
 
 ```sh
-docker compose -p forgeflow-reference-check run --rm build mvn -B -Dtest=WorkflowReferenceTest -Dsurefire.failIfNoSpecifiedTests=false test
+docker compose -p slickflow-reference-check run --rm build mvn -B -Dtest=WorkflowReferenceTest -Dsurefire.failIfNoSpecifiedTests=false test
 ```
 
 Remove only that disposable verification project after the check:
 
 ```sh
-docker compose -p forgeflow-reference-check down --volumes --remove-orphans
+docker compose -p slickflow-reference-check down --volumes --remove-orphans
 ```
 
 The check validates BPMN XML against Flowable's bundled BPMN schema, resolves

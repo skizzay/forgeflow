@@ -32,7 +32,7 @@ Each task must specify dependencies, acceptance criteria, verification, and comp
 
 ## Feasibility checkpoint — 2026-10-22
 
-[Issue #18](https://github.com/skizzay/forgeflow/issues/18) is closed with an
+[Issue #18](https://github.com/skizzay/slickflow/issues/18) is closed with an
 accepted bounded research result; see the [synthesis](../research/issue-18-results.md).
 PR #21 is retained as an unmerged experiment archive, not a production dependency.
 Bootstrap, webhook inbox, lifecycle guards and worker OAuth2 authentication are

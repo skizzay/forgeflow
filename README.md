@@ -1,14 +1,16 @@
-# ForgeFlow
+# SlickFlow
+
+Project domain: **slickflow.ai**. Repository: [skizzay/slickflow](https://github.com/skizzay/slickflow).
 
 **Dependency-aware orchestration for autonomous software development.**
 
-ForgeFlow is an early-stage, open-source project to coordinate GitHub epics and stories, Codex development workers, pull-request reviews, and controlled releases. **Status: control-plane bootstrap; end-to-end orchestration is not yet available.**
+SlickFlow is an early-stage, open-source project to coordinate GitHub epics and stories, Codex development workers, pull-request reviews, and controlled releases. **Status: control-plane bootstrap; end-to-end orchestration is not yet available.**
 
 ## Intended workflow
 
 1. Codex drafts an epic and child stories with explicit dependencies and acceptance criteria.
 2. A human approves the execution plan.
-3. ForgeFlow creates an epic branch and schedules only dependency-ready stories.
+3. SlickFlow creates an epic branch and schedules only dependency-ready stories.
 4. A worker executes each story in an isolated Docker container, using Codex to implement and test changes.
 5. Story PRs target the epic branch. Copilot feedback can trigger bounded automated remediation.
 6. A story unlocks dependents only after its PR merges into the epic branch.
@@ -38,7 +40,7 @@ Verify it with `./scripts/verify-bootstrap.sh`. GitHub/worker orchestration is n
 
 Documentation: [research, requirements, architecture and consumer user guide](docs/README.md).
 
-The [archived Flowable spike](https://github.com/skizzay/forgeflow/blob/c5d8fcab11253eb5529caad8c066ebd13a033d1b/spikes/flowable/README.md) preserves the executable research and reproduction instructions.
+The [archived Flowable spike](https://github.com/skizzay/slickflow/blob/c5d8fcab11253eb5529caad8c066ebd13a033d1b/spikes/flowable/README.md) preserves the executable research and reproduction instructions.
 
 The optional [verified GitHub webhook inbox](docs/user-guide/github-webhooks.md)
 accepts signed deliveries into PostgreSQL and classifies them asynchronously.

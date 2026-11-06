@@ -1,6 +1,6 @@
 # Flowable and provider boundaries
 
-Target design for [#77](https://github.com/skizzay/forgeflow/issues/77).
+Target design for [#77](https://github.com/skizzay/slickflow/issues/77).
 The [worker protocol](../requirements/worker-protocol.md) is the execution-plane
 contract within this design, not the workflow definition or provider API.
 
@@ -35,7 +35,7 @@ adapter. Provider selection is trusted server configuration, not worker input.
 
 | Boundary | Minimum activity-facing capability | Provider-neutral result |
 |---|---|---|
-| Ticket query | Read a work item and its linked references | Work-item details/acceptance input; plan validation remains ForgeFlow policy |
+| Ticket query | Read a work item and its linked references | Work-item details/acceptance input; plan validation remains SlickFlow policy |
 | Repository query | Read branch/head, change request and check observations | Exact normalized refs, commit identities and evidence, including unknown state |
 | Branch/commit publication | Publish or confirm the expected branch/commit | Bound branch and commit identity |
 | Change-request publication | Publish or confirm a request for the expected base/head | `ChangeRequestRef` and exact binding |

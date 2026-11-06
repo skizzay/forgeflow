@@ -4,7 +4,7 @@ System structure, component boundaries, contracts and design decisions belong he
 
 - [Architecture overview](overview.md)
 
-The intended stack is Java/Spring Boot with PostgreSQL and a separate Java worker controller. The [decision spike #18](https://github.com/skizzay/forgeflow/issues/18) established bounded Flowable feasibility; production implementation and GitHub integration remain unverified.
+The intended stack is Java/Spring Boot with PostgreSQL and a separate Java worker controller. The [decision spike #18](https://github.com/skizzay/slickflow/issues/18) established bounded Flowable feasibility; production implementation and GitHub integration remain unverified.
 
 - [Flowable decision record](decisions/0002-flowable-spike-in-progress.md) — accepted bounded feasibility result; GitHub integration remains follow-up work.
 
@@ -16,7 +16,7 @@ The intended stack is Java/Spring Boot with PostgreSQL and a separate Java worke
 
 - [Separate job, story and epic lifecycle](lifecycle-states.md) — guarded transitions, internal approved-parent preparation (#88), injectable audit clock/command IDs, pinned identity and recovery boundaries for #14.
 
-- [Worker OAuth2 authentication](../user-guide/worker-authentication.md) — Boot-managed JWT configuration and principal mapping; ForgeFlow is a resource server, not an identity platform.
+- [Worker OAuth2 authentication](../user-guide/worker-authentication.md) — Boot-managed JWT configuration and principal mapping; SlickFlow is a resource server, not an identity platform.
 - [Worker protocol](../requirements/worker-protocol.md) — proposed API messages, lease ownership and cancellation/recovery diagrams; endpoints are not implemented yet.
 
 - [Development workflow reference](workflow-reference.md) — proposed non-executable BPMN and matching actor-colored Mermaid views and Flowable IDE compatibility notes for epic coordination, normal releases, hotfix delivery, staged review and feedback-driven skill improvement (#100).

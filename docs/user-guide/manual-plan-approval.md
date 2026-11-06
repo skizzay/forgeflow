@@ -1,6 +1,6 @@
 # Manually approve one configured plan
 
-[#46](https://github.com/skizzay/forgeflow/issues/46) adds an opt-in approval
+[#46](https://github.com/skizzay/slickflow/issues/46) adds an opt-in approval
 command for one pre-provisioned epic/story pair. It records approval only; it does
 not start a workflow, create a job or merge code. The feature defaults to disabled.
 
@@ -15,15 +15,15 @@ review the plan/configuration snapshot out of band.
 Configure Spring Boot's standard OAuth2 resource-server issuer, audiences and
 optional JWKS URI as described in the [worker OAuth2 guide](worker-authentication.md).
 Obtain a short-lived human access token using your external provider's approved
-login flow. Configure that human's exact subject and grant `forgeflow.plan.approve`.
+login flow. Configure that human's exact subject and grant `slickflow.plan.approve`.
 Do not use the worker service client's token or grant it human approval authority.
-No ForgeFlow login server, LDAP adapter or OAuth client-secret configuration is needed.
+No SlickFlow login server, LDAP adapter or OAuth client-secret configuration is needed.
 
 Supply these additional YAML properties in your external Spring configuration
 (all IDs and hashes below are illustrative):
 
 ```yaml
-forgeflow:
+slickflow:
   manual-approval:
     enabled: true
     epic-id: 00000000-0000-0000-0000-000000000101
@@ -38,7 +38,7 @@ forgeflow:
 ```
 
 The definition hash must match the actual registered workflow, not the example.
-The configuration hash identifies your reviewed snapshot; ForgeFlow does not
+The configuration hash identifies your reviewed snapshot; SlickFlow does not
 calculate or resolve that snapshot in this slice. Each changed plan/configuration
 or definition needs a newly reviewed approval identity. Settings changes require
 restarting the control plane. The issuer and subject together identify the audited

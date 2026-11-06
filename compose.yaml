@@ -3,11 +3,11 @@ services:
   db:
     image: postgres:17.11
     environment:
-      POSTGRES_USER: forgeflow_local
+      POSTGRES_USER: slickflow_local
       POSTGRES_PASSWORD: local-only-not-for-deployment
-      POSTGRES_DB: forgeflow
+      POSTGRES_DB: slickflow
     healthcheck:
-      test: [CMD-SHELL, 'pg_isready -U forgeflow_local -d forgeflow']
+      test: [CMD-SHELL, 'pg_isready -U slickflow_local -d slickflow']
       interval: 2s
       timeout: 3s
       retries: 30
@@ -17,9 +17,9 @@ services:
     image: maven:3.9.9-eclipse-temurin-21
     working_dir: /workspace
     environment:
-      FORGEFLOW_DB_URL: jdbc:postgresql://db:5432/forgeflow?currentSchema=forgeflow
-      FORGEFLOW_DB_USER: forgeflow_local
-      FORGEFLOW_DB_PASSWORD: local-only-not-for-deployment
+      SLICKFLOW_DB_URL: jdbc:postgresql://db:5432/slickflow?currentSchema=slickflow
+      SLICKFLOW_DB_USER: slickflow_local
+      SLICKFLOW_DB_PASSWORD: local-only-not-for-deployment
       MAVEN_OPTS: -Xmx384m
     depends_on:
       db:
