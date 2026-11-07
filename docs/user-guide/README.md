@@ -1,10 +1,10 @@
 # Consumer user guide
 
-Instructions for people setting up and using ForgeFlow belong here.
+Instructions for people setting up and using SlickFlow belong here.
 
 Planned topics: installation, connecting a repository, approving work, following execution and reviewing results. Further setup instructions will be added as those capabilities become available.
 
-- [Local control-plane bootstrap](local-control-plane.md) — migrate the database, run the local health endpoint and optionally enable approved execution and configured signed-event dispatch.
+- [Local control-plane bootstrap](local-control-plane.md) — migrate the database, run the local health endpoint and optionally enable approved execution and configured signed-event dispatch; includes project identity and preservation of existing local resources.
 
 - [GitHub webhook inbox](github-webhooks.md) — enable signed delivery ingestion and inspect processing status.
 

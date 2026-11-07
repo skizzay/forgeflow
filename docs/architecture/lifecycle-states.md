@@ -1,7 +1,7 @@
 # Separate job, story and epic lifecycle
 
-Implements [#14](https://github.com/skizzay/forgeflow/issues/14), parent
-[Foundation #1](https://github.com/skizzay/forgeflow/issues/1).
+Implements [#14](https://github.com/skizzay/slickflow/issues/14), parent
+[Foundation #1](https://github.com/skizzay/slickflow/issues/1).
 
 ## Boundaries
 
@@ -14,7 +14,7 @@ scoped human authority for the configured epic; the general authority still deni
 unverified transitions.
 
 Flowable owns process/activity progression. The domain entities own guarded
-ForgeFlow domain transitions; they do not sequence or complete BPMN activities.
+SlickFlow domain transitions; they do not sequence or complete BPMN activities.
 GitHub PR/check state is independent authoritative evidence. DAG eligibility is
 an independently verified prerequisite, not a workflow-generated decision. Job
 SUCCEEDED changes only the job; it cannot imply story MERGED, epic COMPLETED,

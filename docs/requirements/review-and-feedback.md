@@ -1,6 +1,6 @@
 # Staged review and feedback-driven skill improvement
 
-Proposed contract under [#100](https://github.com/skizzay/forgeflow/issues/100).
+Proposed contract under [#100](https://github.com/skizzay/slickflow/issues/100).
 The [BPMN/Mermaid reference](../architecture/workflow-reference.md) illustrates
 this design; staged reviews, feedback persistence and skill promotion are not
 implemented runtime capabilities yet.

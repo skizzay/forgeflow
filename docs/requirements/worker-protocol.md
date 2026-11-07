@@ -1,6 +1,6 @@
 # Single-worker protocol v1
 
-Contract for [#37](https://github.com/skizzay/forgeflow/issues/37), under #9/#3.
+Contract for [#37](https://github.com/skizzay/slickflow/issues/37), under #9/#3.
 This specifies future endpoints; none are implemented by this document. Scope is
 one configured Java controller, one repository and one active Docker job. Jobs
 have no database/Flowable access. See [architecture](../architecture/overview.md),
@@ -100,8 +100,8 @@ provider issues short-lived RS256 JWT access tokens using client credentials.
 Spring Boot configures the JWT decoder from standard resource-server properties.
 Validate signature against trusted public keys, exact issuer, audience, expiry
 and not-before time. Map the configured issuer/subject to a stable worker UUID
-and require scope `forgeflow.worker`. No shared API secret, token issuance,
-directory integration or identity platform belongs in ForgeFlow. LDAP/AD may be
+and require scope `slickflow.worker`. No shared API secret, token issuance,
+directory integration or identity platform belongs in SlickFlow. LDAP/AD may be
 federated behind the external provider. Use HTTPS and a protected TLS-termination
 hop; no credentials go in query strings or untrusted job containers.
 

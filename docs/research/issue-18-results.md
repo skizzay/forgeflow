@@ -1,8 +1,8 @@
 # Issue #18: experiment results and synthesis
 
-Issue: [#18](https://github.com/skizzay/forgeflow/issues/18), parent
-[Foundation #1](https://github.com/skizzay/forgeflow/issues/1), continuation of
-[PR #21](https://github.com/skizzay/forgeflow/pull/21). Experiments ran locally; no sandbox GitHub PR or merge was exercised.
+Issue: [#18](https://github.com/skizzay/slickflow/issues/18), parent
+[Foundation #1](https://github.com/skizzay/slickflow/issues/1), continuation of
+[PR #21](https://github.com/skizzay/slickflow/pull/21). Experiments ran locally; no sandbox GitHub PR or merge was exercised.
 The source and sanitized evidence were subsequently pushed to the preserved
 `story/18-flowable-spike` branch (commit `c5d8fcab11253eb5529caad8c066ebd13a033d1b`). Issue #18 closure was subsequently
 authorized by the maintainer on 2026-10-21. The real Codex exercise
@@ -28,7 +28,7 @@ now uses the existing ChatGPT sign-in and user-designated local Git sandbox.
 
 ## Reproduction and recorded checks
 
-See the [spike README](https://github.com/skizzay/forgeflow/blob/c5d8fcab11253eb5529caad8c066ebd13a033d1b/spikes/flowable/README.md) for exact commands.
+See the [spike README](https://github.com/skizzay/slickflow/blob/c5d8fcab11253eb5529caad8c066ebd13a033d1b/spikes/flowable/README.md) for exact commands.
 
 - Default Maven/Compose suite: **19 tests, 0 failures/errors/skips**: 3 persistence,
   6 recovery, 8 HTTPS handoff and 2 credential-projection cases. Two deterministic provider/variant runs
@@ -58,12 +58,12 @@ only synthetic fixture credentials appear in source/Compose.
 
 ## Design conclusions from the experiments
 
-Flowable can durably own the process wait while ForgeFlow owns external-worker
+Flowable can durably own the process wait while SlickFlow owns external-worker
 leases and mandatory domain policy. A registered dispatch activity persists intent
 in the engine transaction. A receive task needs no engine lock held across remote
 work. Accepted completion and the domain result share one Spring transaction.
 
-ForgeFlow still needs a small, explicit lease/reconciliation service. That is
+SlickFlow still needs a small, explicit lease/reconciliation service. That is
 domain dispatch policy, not a second workflow sequencer: process progression stays
 in Flowable. Fencing rejects stale accepted updates; it does not stop old workers
 from calling GitHub. External effects stay at-least-once and require correlation,
@@ -100,7 +100,7 @@ that arbitrary BPMN scripts, classes or expressions are safe to accept.
   then start runtime with schema updates disabled; the rehearsal used automatic
   upgrade only in a disposable database. Back up before upgrading; rollback means
   restore the matching backup/software, not an assumed in-place downgrade. Engine
-  and ForgeFlow schema ownership remain separate. No production schema is adopted.
+  and SlickFlow schema ownership remain separate. No production schema is adopted.
 
 ## Overall synthesis — local evidence complete; GitHub boundary unverified
 

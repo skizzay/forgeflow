@@ -1,8 +1,8 @@
 # Verified GitHub webhook inbox
 
-Implements [#8](https://github.com/skizzay/forgeflow/issues/8), parent
-[Foundation #1](https://github.com/skizzay/forgeflow/issues/1), in
-[PR #23](https://github.com/skizzay/forgeflow/pull/23). Dependencies #7 and the
+Implements [#8](https://github.com/skizzay/slickflow/issues/8), parent
+[Foundation #1](https://github.com/skizzay/slickflow/issues/1), in
+[PR #23](https://github.com/skizzay/slickflow/pull/23). Dependencies #7 and the
 connection-schema refinement #32 are integrated into the Foundation epic. Uses
 the existing WebFlux and PostgreSQL/JDBC control plane and shared transaction manager.
 The [hexagonal structure](hexagonal-control-plane.md) separates application policy

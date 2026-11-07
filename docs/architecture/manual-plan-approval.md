@@ -1,6 +1,6 @@
 # Configured manual plan approval
 
-Implements [#46](https://github.com/skizzay/forgeflow/issues/46), under #11/#3.
+Implements [#46](https://github.com/skizzay/slickflow/issues/46), under #11/#3.
 The opt-in command records human approval for one configured epic/story pair. It
 transitions only the epic DRAFT → APPROVED, or APPROVED → DRAFT on invalidation.
 The story stays DRAFT. No workflow instance, job, dispatch or merge is created.
@@ -13,7 +13,7 @@ recording approval alone never dispatches work.
 Spring Boot owns JWT decoder configuration through standard resource-server
 properties, shared with the worker boundary. An external identity provider owns
 human login and issues the operator's access token. Both the configured subject
-and `forgeflow.plan.approve` scope are required, as are the trusted issuer,
+and `slickflow.plan.approve` scope are required, as are the trusted issuer,
 audience, signature and timestamps. Tokens without expiry are denied. Worker
 scope alone confers no approval authority; worker clients must not be granted
 the human subject or approval scope by the provider.
@@ -24,7 +24,7 @@ retain their existing security policies. The audited actor is the validated
 issuer, a space, and subject, keeping the identity scoped to its issuer. It never
 comes from request JSON. Unknown outer request fields, including `actorId`, are
 rejected. The external provider must reserve the configured subject for a human;
-ForgeFlow does not build a login service or infer human authority from labels.
+SlickFlow does not build a login service or infer human authority from labels.
 
 ## Core and transaction
 

@@ -1,9 +1,9 @@
 # OAuth2 worker authentication
 
-Implementation for [#38](https://github.com/skizzay/forgeflow/issues/38).
-ForgeFlow is a resource server, not an identity platform. Use an external OAuth2
+Implementation for [#38](https://github.com/skizzay/slickflow/issues/38).
+SlickFlow is a resource server, not an identity platform. Use an external OAuth2
 provider and its client-credentials flow for the trusted worker controller. LDAP
-or Active Directory integration belongs behind that provider; ForgeFlow does not
+or Active Directory integration belongs behind that provider; SlickFlow does not
 manage accounts, passwords, directories, token issuance or client enrollment.
 
 This enables authentication for worker v1 routes only. Production claim,
@@ -11,19 +11,19 @@ heartbeat and result endpoints remain unimplemented; an authorized request to an
 absent endpoint returns 404. No database worker enrollment is performed.
 
 Configure the provider to issue RS256-signed JWT access tokens with an exact issuer,
-a `sub` identifying the controller, audience `forgeflow` (or your configured
-value), an expiry, and scope `forgeflow.worker`. Use access tokens, not ID tokens.
+a `sub` identifying the controller, audience `slickflow` (or your configured
+value), an expiry, and scope `slickflow.worker`. Use access tokens, not ID tokens.
 Give the controller its client credentials through an external secret store. The
 control plane needs only public provider metadata and a trusted identity mapping:
 
 | Environment variable | Purpose |
 |---|---|
-| `FORGEFLOW_WORKER_ENABLED` | `true` enables worker v1 access; defaults to false |
-| `FORGEFLOW_WORKER_ID` | Stable, pre-provisioned ForgeFlow worker UUID |
+| `SLICKFLOW_WORKER_ENABLED` | `true` enables worker v1 access; defaults to false |
+| `SLICKFLOW_WORKER_ID` | Stable, pre-provisioned SlickFlow worker UUID |
 | `SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUERURI` | Exact trusted token issuer, e.g. `https://identity.example/realms/home` |
 | `SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWKSETURI` | Optional HTTPS public signing-key endpoint; otherwise discovered from issuer |
-| `SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_AUDIENCES` | Required access-token audience, e.g. `forgeflow` |
-| `FORGEFLOW_WORKER_SUBJECT` | Exact trusted controller subject within this issuer |
+| `SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_AUDIENCES` | Required access-token audience, e.g. `slickflow` |
+| `SLICKFLOW_WORKER_SUBJECT` | Exact trusted controller subject within this issuer |
 
 The same provider settings can be supplied as standard Spring YAML:
 
@@ -36,12 +36,12 @@ spring:
           issuer-uri: https://identity.example/realms/home
           jwk-set-uri: https://identity.example/realms/home/protocol/openid-connect/certs
           audiences:
-            - forgeflow
+            - slickflow
 ```
 
 All settings except the explicit JWKS URI are required when enabled. Spring Boot
 auto-configures the reactive JWT decoder from its standard resource-server
-properties. ForgeFlow configures only worker identity and authorization. This deliberately supports one configured
+properties. SlickFlow configures only worker identity and authorization. This deliberately supports one configured
 issuer/subject-to-worker mapping, not a provisioning service. Compose requires
 explicit environment forwarding (`-e VARIABLE_NAME`, without embedding secrets).
 
@@ -49,7 +49,7 @@ explicit environment forwarding (`-e VARIABLE_NAME`, without embedding secrets).
 sequenceDiagram
     participant W as Trusted worker controller
     participant I as External OAuth2 provider
-    participant F as ForgeFlow worker API
+    participant F as SlickFlow worker API
     W->>I: Client credentials and requested worker scope
     I-->>W: Short-lived JWT access token
     W->>F: Authorization Bearer access token
@@ -61,7 +61,7 @@ sequenceDiagram
 
 Send a single `Authorization: Bearer <access-token>` header over HTTPS, with a
 protected TLS-termination hop. Spring Security validates signatures, issuer,
-audience, expiry and not-before time (with its default clock skew). ForgeFlow additionally rejects tokens without an expiry. The configured
+audience, expiry and not-before time (with its default clock skew). SlickFlow additionally rejects tokens without an expiry. The configured
 subject is mapped to a framework-free worker principal; request-body identity is
 ignored. Only the worker scope is retained as an authority. No session is created.
 

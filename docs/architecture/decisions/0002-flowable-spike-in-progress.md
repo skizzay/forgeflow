@@ -1,8 +1,8 @@
 # ADR 0002: Flowable feasibility evidence
 
 Status: **Accepted bounded feasibility result — maintainer direction, 2026-10-21.**
-Issue: [#18](https://github.com/skizzay/forgeflow/issues/18).
-Parent: [Foundation #1](https://github.com/skizzay/forgeflow/issues/1).
+Issue: [#18](https://github.com/skizzay/slickflow/issues/18).
+Parent: [Foundation #1](https://github.com/skizzay/slickflow/issues/1).
 
 ## Context
 
@@ -13,7 +13,7 @@ proposal is pending review in #19; no documentation PR is merged by this change.
 
 ## Evidence
 
-The [executable spike](https://github.com/skizzay/forgeflow/blob/c5d8fcab11253eb5529caad8c066ebd13a033d1b/spikes/flowable/README.md) demonstrates PostgreSQL
+The [executable spike](https://github.com/skizzay/slickflow/blob/c5d8fcab11253eb5529caad8c066ebd13a033d1b/spikes/flowable/README.md) demonstrates PostgreSQL
 process persistence, definition pinning across deployment/restart, guarded
 activity execution with rollback on rejection, and deterministic test-provider
 substitution. The local [recovery experiment](../../research/flowable-recovery-experiment.md)

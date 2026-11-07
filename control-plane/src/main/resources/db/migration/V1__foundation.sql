@@ -1,4 +1,4 @@
--- ForgeFlow owns this schema; Flowable owns only the separate flowable schema.
+-- SlickFlow owns this schema; Flowable owns only the separate flowable schema.
 create table repository (
     id uuid primary key,
     github_id bigint not null unique check (github_id > 0),

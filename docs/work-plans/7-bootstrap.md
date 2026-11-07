@@ -1,8 +1,8 @@
 # #7: Spring Boot and PostgreSQL bootstrap
 
-Issue: [#7](https://github.com/skizzay/forgeflow/issues/7), parent
-[Foundation #1](https://github.com/skizzay/forgeflow/issues/1).
-Status: implementation under review in [#22](https://github.com/skizzay/forgeflow/pull/22).
+Issue: [#7](https://github.com/skizzay/slickflow/issues/7), parent
+[Foundation #1](https://github.com/skizzay/slickflow/issues/1).
+Status: implementation under review in [#22](https://github.com/skizzay/slickflow/pull/22).
 Dependency: #18 accepted research decision. Prototype merge is not required.
 
 ## Delivered scope

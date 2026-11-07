@@ -1,24 +1,24 @@
 # Configure the local GitHub webhook inbox
 
-Tracks [#8](https://github.com/skizzay/forgeflow/issues/8). First follow the
+Tracks [#8](https://github.com/skizzay/slickflow/issues/8). First follow the
 [local control-plane guide](local-control-plane.md) to build and migrate. The initial
 V1 schema includes the webhook inbox and event classification tables.
 
 Webhooks are disabled by default. To enable them, supply these environment
 variables to the runtime container from your environment or secret manager:
 
-- `FORGEFLOW_GITHUB_WEBHOOK_ENABLED=true`
-- `FORGEFLOW_GITHUB_WEBHOOK_SECRET`: the secret configured for the GitHub App webhook.
+- `SLICKFLOW_GITHUB_WEBHOOK_ENABLED=true`
+- `SLICKFLOW_GITHUB_WEBHOOK_SECRET`: the secret configured for the GitHub App webhook.
 
 This is a signing secret, not the GitHub App private-key PEM. Do not put it in
 tracked files, URLs, process arguments or logs. Compose does not forward these
-host variables implicitly: pass `-e FORGEFLOW_GITHUB_WEBHOOK_ENABLED` and
-`-e FORGEFLOW_GITHUB_WEBHOOK_SECRET` to its `run` command, without literal values.
+host variables implicitly: pass `-e SLICKFLOW_GITHUB_WEBHOOK_ENABLED` and
+`-e SLICKFLOW_GITHUB_WEBHOOK_SECRET` to its `run` command, without literal values.
 For example, after exporting the variables securely in your shell:
 
 ```sh
-docker compose -p forgeflow-dev run --rm --service-ports \
-  -e FORGEFLOW_GITHUB_WEBHOOK_ENABLED -e FORGEFLOW_GITHUB_WEBHOOK_SECRET \
+docker compose -p slickflow-dev run --rm --service-ports \
+  -e SLICKFLOW_GITHUB_WEBHOOK_ENABLED -e SLICKFLOW_GITHUB_WEBHOOK_SECRET \
   build java -jar control-plane/target/control-plane-0.1.0-SNAPSHOT.jar --server.address=0.0.0.0
 ```
 
@@ -32,7 +32,7 @@ Same UUID with changed content returns 409. A 503 is not an acknowledgement:
 retry the original delivery after database recovery. Unsupported event types are
 classified as UNSUPPORTED; no event starts an agent or approves a plan.
 
-Optional YAML settings under `forgeflow.github.webhook`:
+Optional YAML settings under `slickflow.github.webhook`:
 
 | Setting | Default | Purpose |
 |---|---|---|

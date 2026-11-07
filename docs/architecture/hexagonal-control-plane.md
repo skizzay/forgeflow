@@ -1,7 +1,7 @@
 # Hexagonal control-plane structure
 
-Tracks [#8](https://github.com/skizzay/forgeflow/issues/8) in
-[PR #23](https://github.com/skizzay/forgeflow/pull/23). The webhook feature provides
+Tracks [#8](https://github.com/skizzay/slickflow/issues/8) in
+[PR #23](https://github.com/skizzay/slickflow/pull/23). The webhook feature provides
 the first ports-and-adapters application core in the control plane.
 
 ## Dependency direction
@@ -98,12 +98,12 @@ standard `spring.security.oauth2.resourceserver.jwt` properties;
 `worker.configuration` wires the worker route policy and requires issuer/audience
 configuration. The identity adapter additionally requires an expiry claim. The external provider
 owns accounts, client credentials, directories and token issuance; LDAP/AD
-federation belongs there. ForgeFlow does not implement an identity platform.
+federation belongs there. SlickFlow does not implement an identity platform.
 
 `worker.adapter.in.security.WorkerAuthentication` maps the validated subject from
 the trusted issuer to a stable `worker.domain.WorkerPrincipal`. This framework-free
 value carries the worker UUID into future use cases; JWT and Spring types stay
-in the adapter/configuration boundary. Only `forgeflow.worker` scope becomes a
+in the adapter/configuration boundary. Only `slickflow.worker` scope becomes a
 worker authority, never human approval authority. Resource ownership, fencing and
 approval checks remain contextual application/domain guards.
 

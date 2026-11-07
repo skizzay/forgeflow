@@ -1,6 +1,6 @@
 # Main-only GitFlow and semantic versions
 
-Proposed workflow contract under [#100](https://github.com/skizzay/forgeflow/issues/100).
+Proposed workflow contract under [#100](https://github.com/skizzay/slickflow/issues/100).
 The [BPMN/Mermaid reference](../architecture/workflow-reference.md) illustrates it;
 runtime branching, release and hotfix handlers are not implemented by this model.
 

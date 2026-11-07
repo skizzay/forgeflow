@@ -1,7 +1,7 @@
 # Real Codex execution with existing ChatGPT sign-in
 
-Tracks [#18](https://github.com/skizzay/forgeflow/issues/18) and the execution/auth
-questions in [#13](https://github.com/skizzay/forgeflow/issues/13). This exercise
+Tracks [#18](https://github.com/skizzay/slickflow/issues/18) and the execution/auth
+questions in [#13](https://github.com/skizzay/slickflow/issues/13). This exercise
 uses the existing ChatGPT sign-in and the local sandbox requested by the user.
 It does not create a GitHub repository, issue or PR and does not update PR #21.
 
@@ -11,9 +11,9 @@ It does not create a GitHub repository, issue or PR and does not update PR #21.
 -> authenticated HTTPS -> separate Java worker -> isolated real Codex CLI -> Java
 compilation/tests -> independent verification -> local story commit/review patch.
 
-The local sandbox is `$HOME/tmp/forgeflow-sandbox`. Its main and epic branches
+The local sandbox is `$HOME/tmp/slickflow-sandbox`. Its main and epic branches
 remain at the initial seed; the story branch contains only the generated Java
-source commit. It has no Git remote. The excluded `.forgeflow` directory contains
+source commit. It has no Git remote. The excluded `.slickflow` directory contains
 the approved fixture identity, sanitized result, review description and patch.
 
 [Recorded numeric evidence](evidence/real-codex-local-result.json):
@@ -63,7 +63,7 @@ From the spike directory, with Docker/Compose and an active file-based ChatGPT
 login in `CODEX_HOME` (default `$HOME/.codex`):
 
 ```sh
-docker build -t forgeflow-codex-java:0.163.0 codex-container
+docker build -t slickflow-codex-java:0.163.0 codex-container
 bash real-codex-experiment.sh
 ```
 
@@ -75,7 +75,7 @@ use `SPIKE_SANDBOX` with another empty location for an intentional repeat.
 The host-only probe extracts a temporary JDK, builds trusted classes with Maven,
 starts PostgreSQL bound to an ephemeral loopback port, starts the authenticated
 prototype API, and runs a separate worker JVM. No Docker socket is mounted into
-development or job containers. The `.forgeflow` evidence and local review are
+development or job containers. The `.slickflow` evidence and local review are
 outside the tracked sandbox files. Never copy authentication caches into either
 repository or into a Docker build context.
 
